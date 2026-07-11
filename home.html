@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Home — Zenova Study Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBoKTKQh1FslukdDgp4YTLXDELyC7hSXBs",
+    authDomain: "zenova-ecosystem.firebaseapp.com",
+    projectId: "zenova-ecosystem",
+    storageBucket: "zenova-ecosystem.firebasestorage.app",
+    messagingSenderId: "104804319209",
+    appId: "1:104804319209:web:fb6a4be936ef9447115578"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) { window.location.href = 'login.html'; return; }
+
+    const name = user.displayName || user.email.split('@')[0];
+    document.getElementById('userNameDisplay').textContent = name.split(' ')[0];
+
+    const snap = await getDoc(doc(db, 'users', user.uid));
+    const data = snap.exists() ? snap.data() : {};
+    const progress = data.progress || {};
+    const scores   = data.scores   || [];
+    const exam     = data.targetExam || 'JAMB 2027';
+
+    document.getElementById('targetExamBadge').textContent = exam;
+
+    renderProgress(progress);
+    renderScores(scores);
+
+    const streak = await updateStreak(user.uid, data);
+    document.getElementById('streakCount').textContent = streak;
+
+    const done = scores.length;
+    document.getElementById('testsCompleted').textContent = done;
+
+    const avg = done ? Math.round(scores.reduce((a,s)=>a+(s.score||0),0)/done) : 0;
+    document.getElementById('avgScore').textContent = avg + '%';
+
+    const completed = Object.values(progress).filter(v=>v>=80).length;
+    document.getElementById('subjCompleted').textContent = completed + '/15';
+
+    renderNotifBadge(data.notifications || {});
+  });
+
+  function renderNotifBadge(notifs) {
+    const unread = Object.values(notifs).filter(n => !n.read).length;
+    const badge = document.getElementById('notifBadge');
+    if (unread > 0) {
+      badge.textContent = unread > 9 ? '9+' : unread;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  async function updateStreak(uid, data) {
+    const today = todayKey();
+    const lastActive = data.lastActiveDate || null;
+    let streak = data.streak || 0;
+
+    if (lastActive === today) return streak;
+
+    if (lastActive) {
+      const prev = new Date(lastActive + 'T00:00:00');
+      const now  = new Date(today + 'T00:00:00');
+      const dayDiff = Math.round((now - prev) / 86400000);
+      streak = dayDiff === 1 ? streak + 1 : 1;
+    } else {
+      streak = 1;
+    }
+
+    await setDoc(doc(db, 'users', uid), { streak, lastActiveDate: today }, { merge: true });
+    return streak;
+  }
+
+  window.doSignOut = async () => {
+    await signOut(auth);
+    window.location.href = 'login.html';
+  };
+
+  const SUBJECTS = [
+    {id:'math',    name:'Mathematics',    icon:'🔢', color:'#1E3A8A'},
+    {id:'english', name:'English',         icon:'📚', color:'#2563EB'},
+    {id:'physics', name:'Physics',         icon:'⚛️',  color:'#1D4ED8'},
+    {id:'chem',    name:'Chemistry',       icon:'🧪', color:'#3B82F6'},
+    {id:'bio',     name:'Biology',         icon:'🌿', color:'#0369A1'},
+    {id:'geo',     name:'Geography',       icon:'🌍', color:'#0EA5E9'},
+    {id:'lit',     name:'Literature',      icon:'📖', color:'#0284C7'},
+    {id:'govt',    name:'Government',      icon:'🏛️',  color:'#123D7A'},
+    {id:'econ',    name:'Economics',       icon:'💰', color:'#2F6FEF'},
+    {id:'crs',     name:'CRS / IRS',       icon:'✝️',  color:'#075985'},
+    {id:'agric',   name:'Agric Science',   icon:'🌾', color:'#38BDF8'},
+    {id:'history', name:'History',         icon:'📜', color:'#0C4A6E'},
+    {id:'commerce',name:'Commerce',        icon:'💼', color:'#60A5FA'},
+    {id:'marketing',name:'Marketing',      icon:'📢', color:'#1E40AF'},
+    {id:'account', name:'Accounting',      icon:'🧮', color:'#0891B2'},
+  ];
+
+  function renderProgress(progress) {
+    const grid = document.getElementById('progressGrid');
+    grid.innerHTML = '';
+    SUBJECTS.slice(0,6).forEach(subj => {
+      const pct = Math.min(100, progress[subj.id] || 0);
+      const r = 36, circ = 2 * Math.PI * r;
+      const offset = circ - (pct / 100) * circ;
+      const card = document.createElement('div');
+      card.className = 'prog-card';
+      card.innerHTML = `
+        <div class="prog-ring-wrap">
+          <svg width="96" height="96" viewBox="0 0 96 96">
+            <circle cx="48" cy="48" r="${r}" fill="none" stroke="#E8EDF5" stroke-width="7"/>
+            <circle cx="48" cy="48" r="${r}" fill="none" stroke="${subj.color}" stroke-width="7"
+              stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}"
+              stroke-dashoffset="${offset.toFixed(1)}" transform="rotate(-90 48 48)"
+              class="ring-fill" data-target="${offset.toFixed(1)}" style="stroke-dashoffset:${circ.toFixed(1)}"/>
+          </svg>
+          <div class="ring-inner">
+            <span class="ring-pct">${pct}<small>%</small></span>
+            <span class="ring-icon">${subj.icon}</span>
+          </div>
+        </div>
+        <div class="prog-name">${subj.name}</div>
+        <a href="quiz.html?subject=${subj.id}" class="prog-cta">${pct === 0 ? 'Start' : pct >= 100 ? '✓ Done' : 'Continue'}</a>
+      `;
+      grid.appendChild(card);
+    });
+    setTimeout(() => {
+      document.querySelectorAll('.ring-fill').forEach(el => {
+        el.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)';
+        el.style.strokeDashoffset = el.dataset.target;
+      });
+    }, 200);
+  }
+
+  function renderScores(scores) {
+    const list = document.getElementById('scoreList');
+    if (!scores.length) {
+      list.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>No tests taken yet.<br/>Take your first quiz to see your scores here.</p></div>';
+      return;
+    }
+    const recent = [...scores].reverse().slice(0, 5);
+    list.innerHTML = recent.map(s => {
+      const pct = s.score || 0;
+      const col = pct >= 70 ? '#22C55E' : pct >= 50 ? '#F59E0B' : '#EF4444';
+      const subj = SUBJECTS.find(x => x.id === s.subjectId) || {};
+      return `
+        <div class="score-row">
+          <div class="score-left">
+            <span class="score-icon">${subj.icon || '📝'}</span>
+            <div>
+              <div class="score-subj">${subj.name || s.subjectId}</div>
+              <div class="score-meta">${s.date ? new Date(typeof s.date==='number'?s.date:s.date.seconds*1000).toLocaleDateString('en-NG',{day:'numeric',month:'short'}) : 'N/A'}</div>
+            </div>
+          </div>
+          <div class="score-right">
+            <div class="score-bar-wrap"><div class="score-bar" style="width:${pct}%;background:${col}"></div></div>
+            <div class="score-pct" style="color:${col}">${pct}%</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+</script>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--navy-light:#153465;--accent:#2563EB;--accent-light:#3B82F6;
+  --accent-dim:rgba(37,99,235,0.12);--muted:#5B7291;--border:#E2E8F4;
+  --green:#22C55E;--red:#EF4444;--amber:#F59E0B;--sky:#0EA5E9;
+  --font:'Plus Jakarta Sans',sans-serif;--r:14px;--rs:8px;
+}
+html,body{height:100%;font-family:var(--font);background:#fff;color:var(--navy);overflow-x:hidden}
+
+/* TOP BAR */
+.app-top{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--border);box-shadow:0 1px 8px rgba(10,22,40,0.05);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.app-top-brand{display:flex;align-items:center;gap:8px}
+.app-top-brand img{height:28px;width:28px;object-fit:contain}
+.app-top-brand span{font-size:15px;font-weight:800;color:var(--navy)}
+.app-top-brand span b{color:var(--accent)}
+.exam-badge{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(37,99,235,0.3);font-size:11.5px;font-weight:700;padding:5px 12px;border-radius:100px}
+.app-top-right{display:flex;align-items:center;gap:10px}
+.bell-btn{position:relative;width:36px;height:36px;border-radius:10px;background:#F1F5FB;display:flex;align-items:center;justify-content:center;font-size:17px;text-decoration:none;flex-shrink:0}
+.bell-badge{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:100px;background:var(--red);color:#fff;font-size:9.5px;font-weight:800;display:none;align-items:center;justify-content:center;border:2px solid #fff;font-family:var(--font)}
+
+/* PAGE CONTENT */
+.page{padding:20px 18px 100px;max-width:640px;margin:0 auto}
+
+.greeting{margin-bottom:20px}
+.greeting h2{font-size:21px;font-weight:800}
+.greeting p{font-size:13.5px;color:var(--muted);margin-top:3px}
+
+.stat-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+.stat-card{background:#fff;border-radius:var(--r);padding:16px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(10,22,40,0.05);position:relative;overflow:hidden}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--scolor,var(--accent))}
+.stat-card .s-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px}
+.stat-card .s-val{font-size:24px;font-weight:800}
+.stat-card .s-icon{position:absolute;top:14px;right:14px;font-size:19px;opacity:0.15}
+.stat-card .s-sub{font-size:11px;color:var(--muted);margin-top:3px}
+
+.tip-card{background:linear-gradient(135deg,var(--navy),var(--navy-light));border-radius:var(--r);padding:16px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;position:relative;overflow:hidden}
+.tip-card::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(14,165,233,0.18) 0%,transparent 70%)}
+.tip-bulb{font-size:22px;flex-shrink:0}
+.tip-content{flex:1;position:relative}
+.tip-label{font-size:9.5px;font-weight:700;color:var(--sky);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:3px}
+.tip-text{font-size:12.5px;color:rgba(255,255,255,0.85);line-height:1.55;font-style:italic}
+
+.cd-strip{background:#fff;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(10,22,40,0.05);border-radius:var(--r);padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.cd-strip-label{font-size:12px;font-weight:700}
+.cd-strip-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.cd-boxes{display:flex;gap:6px}
+.cd-box{background:var(--navy);border-radius:6px;padding:5px 8px;text-align:center;min-width:38px}
+.cd-box .cn{font-size:15px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;display:block}
+.cd-box .cl{font-size:8px;color:var(--sky);font-weight:700;text-transform:uppercase;display:block}
+
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.sec-title{font-size:16px;font-weight:800}
+.sec-link{font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none}
+
+.test-cta-card{background:linear-gradient(135deg,var(--navy),#1E3A8A);border-radius:var(--r);padding:20px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden}
+.test-cta-card::before{content:'';position:absolute;top:-30px;right:-30px;width:140px;height:140px;background:rgba(255,255,255,0.08);border-radius:50%}
+.test-cta-card h3{font-size:16px;font-weight:800;position:relative;margin-bottom:6px}
+.test-cta-card p{font-size:12.5px;color:rgba(255,255,255,0.75);line-height:1.55;position:relative;margin-bottom:14px}
+.btn-white{background:#fff;color:#1E3A8A;font-weight:800;font-size:13.5px;padding:10px 18px;border-radius:var(--rs);text-decoration:none;display:inline-block;position:relative}
+
+.progress-section{background:#fff;border-radius:var(--r);padding:18px;margin-bottom:20px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(10,22,40,0.05)}
+.prog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.prog-card{display:flex;flex-direction:column;align-items:center;gap:6px;text-decoration:none}
+.prog-ring-wrap{position:relative;width:76px;height:76px}
+.prog-ring-wrap svg{position:absolute;top:0;left:0;width:76px;height:76px}
+.ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-pct{font-size:14px;font-weight:800}
+.ring-pct small{font-size:9px;font-weight:600}
+.ring-icon{font-size:11px}
+.prog-name{font-size:10.5px;font-weight:700;text-align:center;line-height:1.25}
+.prog-cta{font-size:9.5px;font-weight:700;padding:3px 9px;border-radius:100px;background:var(--accent-dim);color:var(--accent);text-decoration:none}
+
+.score-section{background:#fff;border-radius:var(--r);padding:18px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(10,22,40,0.05)}
+.score-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #E8EDF5}
+.score-row:last-child{border-bottom:none}
+.score-left{display:flex;align-items:center;gap:9px;flex:1;min-width:0}
+.score-icon{font-size:18px;flex-shrink:0}
+.score-subj{font-size:13px;font-weight:700}
+.score-meta{font-size:11px;color:var(--muted);margin-top:1px}
+.score-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.score-bar-wrap{width:56px;height:5px;background:#E8EDF5;border-radius:3px;overflow:hidden}
+.score-bar{height:100%;border-radius:3px}
+.score-pct{font-size:13px;font-weight:800;min-width:32px;text-align:right}
+.empty-state{text-align:center;padding:24px 10px;color:var(--muted)}
+.empty-icon{font-size:30px;margin-bottom:8px}
+.empty-state p{font-size:13px;line-height:1.6}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:64px;background:#fff;border-top:1px solid var(--border);box-shadow:0 -2px 12px rgba(10,22,40,0.06);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94A3B8;font-size:10.5px;font-weight:600;position:relative;transition:color .2s}
+.bn-icon{font-size:20px}
+.bn-item.active{color:var(--accent)}
+.bn-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:26px;height:3px;background:var(--accent);border-radius:0 0 3px 3px}
+
+@media(min-width:640px){
+  .page{max-width:600px}
+  .stat-cards{grid-template-columns:repeat(4,1fr)}
+  .prog-grid{grid-template-columns:repeat(6,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header class="app-top">
+  <a href="home.html" class="app-top-brand">
+    <img src="logo.png" alt="Zenova"/>
+    <span>Zenova <b>Hub</b></span>
+  </a>
+  <div class="app-top-right">
+    <span class="exam-badge" id="targetExamBadge">JAMB 2027</span>
+    <a href="notifications.html" class="bell-btn">
+      🔔
+      <span class="bell-badge" id="notifBadge">0</span>
+    </a>
+  </div>
+</header>
+
+<div class="page">
+
+  <div class="greeting">
+    <h2 id="greetingText">Good morning 👋</h2>
+    <p>Welcome back, <span id="userNameDisplay">Student</span>. Keep pushing!</p>
+  </div>
+
+  <div class="stat-cards">
+    <div class="stat-card" style="--scolor:#1E3A8A">
+      <div class="s-label">Streak</div>
+      <div class="s-val" id="streakCount">0</div>
+      <div class="s-sub">days 🔥</div>
+      <span class="s-icon">🔥</span>
+    </div>
+    <div class="stat-card" style="--scolor:#2563EB">
+      <div class="s-label">Tests Taken</div>
+      <div class="s-val" id="testsCompleted">0</div>
+      <div class="s-sub">completed</div>
+      <span class="s-icon">📝</span>
+    </div>
+    <div class="stat-card" style="--scolor:#0284C7">
+      <div class="s-label">Avg Score</div>
+      <div class="s-val" id="avgScore">—</div>
+      <div class="s-sub">all subjects</div>
+      <span class="s-icon">📊</span>
+    </div>
+    <div class="stat-card" style="--scolor:#0EA5E9">
+      <div class="s-label">Mastered</div>
+      <div class="s-val" id="subjCompleted">0/15</div>
+      <div class="s-sub">80%+ done</div>
+      <span class="s-icon">🎯</span>
+    </div>
+  </div>
+
+  <div class="tip-card">
+    <div class="tip-bulb">💡</div>
+    <div class="tip-content">
+      <div class="tip-label">Tip of the Day</div>
+      <div class="tip-text" id="dashTipText">Loading today's tip...</div>
+    </div>
+  </div>
+
+  <div class="cd-strip">
+    <div>
+      <div class="cd-strip-label">⏳ JAMB 2027 Countdown</div>
+      <div class="cd-strip-sub">Feb 15, 2027 — stay focused!</div>
+    </div>
+    <div class="cd-boxes">
+      <div class="cd-box"><span class="cn" id="d-days">000</span><span class="cl">Days</span></div>
+      <div class="cd-box"><span class="cn" id="d-hrs">00</span><span class="cl">Hrs</span></div>
+      <div class="cd-box"><span class="cn" id="d-min">00</span><span class="cl">Min</span></div>
+    </div>
+  </div>
+
+  <div class="test-cta-card">
+    <h3>📅 This Week's Quiz is Live</h3>
+    <p>New questions are ready across your subjects. Jump in and track your score.</p>
+    <a href="quiz.html" class="btn-white">Take a Quiz →</a>
+  </div>
+
+  <div class="progress-section">
+    <div class="sec-header">
+      <div class="sec-title">📊 Your Subjects</div>
+      <a href="quiz.html" class="sec-link">View all →</a>
+    </div>
+    <div class="prog-grid" id="progressGrid"></div>
+  </div>
+
+  <div class="score-section">
+    <div class="sec-header">
+      <div class="sec-title">📈 Recent Scores</div>
+      <a href="progress.html" class="sec-link">Full history →</a>
+    </div>
+    <div id="scoreList">
+      <div class="empty-state"><div class="empty-icon">📝</div><p>No tests taken yet.<br/>Take your first quiz!</p></div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="bottom-nav">
+  <a href="home.html" class="bn-item active"><span class="bn-icon">🏠</span>Home</a>
+  <a href="quiz.html" class="bn-item"><span class="bn-icon">📝</span>Quiz</a>
+  <a href="progress.html" class="bn-item"><span class="bn-icon">📊</span>Progress</a>
+  <a href="profile.html" class="bn-item"><span class="bn-icon">👤</span>Profile</a>
+</nav>
+
+<script>
+const h = new Date().getHours();
+const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+document.getElementById('greetingText').textContent = greet + ' 👋';
+
+const TIPS = [
+  'Start with questions you know best — confidence in the first 10 sets your pace.',
+  'Eliminate two obviously wrong options first. Your odds jump to 50% instantly.',
+  'Revise past questions for 30 mins daily — 70% of JAMB patterns repeat.',
+  "Don't leave any question blank. A guess gives you a chance; leaving it blank gives zero.",
+  'Sleep is revision. Your brain consolidates what you studied while you sleep.',
+  'Read each question twice before answering — one word can change the answer.',
+  'Manage your time: 40 questions in 30 mins = 45 seconds per question.',
+];
+document.getElementById('dashTipText').textContent = '"' + TIPS[Math.floor(Math.random()*TIPS.length)] + '"';
+
+const JAMB = new Date('2027-02-15T09:00:00');
+function pad(n, w=2) { return String(Math.floor(n)).padStart(w,'0'); }
+function tick() {
+  const diff = JAMB - new Date();
+  if (diff <= 0) return;
+  document.getElementById('d-days').textContent = pad(Math.floor(diff/86400000),3);
+  document.getElementById('d-hrs').textContent  = pad(Math.floor((diff%86400000)/3600000));
+  document.getElementById('d-min').textContent  = pad(Math.floor((diff%3600000)/60000));
+}
+tick(); setInterval(tick, 30000);
+</script>
+</body>
+</html>

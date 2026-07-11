@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Profile — Zenova Study Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut, updatePassword, EmailAuthProvider, reauthenticateWithCredential, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const app  = initializeApp({apiKey:"AIzaSyBoKTKQh1FslukdDgp4YTLXDELyC7hSXBs",authDomain:"zenova-ecosystem.firebaseapp.com",projectId:"zenova-ecosystem",storageBucket:"zenova-ecosystem.firebasestorage.app",messagingSenderId:"104804319209",appId:"1:104804319209:web:fb6a4be936ef9447115578"});
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+  let currentUser = null;
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = 'login.html'; return; }
+    currentUser = user;
+
+    const name = user.displayName || user.email.split('@')[0];
+    const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    document.getElementById('avatarBig').textContent = initials;
+    document.getElementById('profileName').textContent = name;
+    document.getElementById('profileEmail').textContent = user.email;
+    document.getElementById('profileJoined').textContent = user.metadata.creationTime
+      ? 'Joined ' + new Date(user.metadata.creationTime).toLocaleDateString('en-NG',{month:'long',year:'numeric'})
+      : '';
+
+    document.getElementById('fieldName').value = name;
+    document.getElementById('fieldEmail').value = user.email;
+
+    const snap = await getDoc(doc(db,'users',user.uid));
+    const data = snap.exists() ? snap.data() : {};
+    const prefs = data.prefs || {};
+
+    document.getElementById('prefExam').value    = data.targetExam || 'JAMB 2027';
+    document.getElementById('prefNotif').checked = prefs.notifications !== false;
+    document.getElementById('prefSound').checked = prefs.sounds !== false;
+    document.getElementById('prefStreak').checked = prefs.streakReminder !== false;
+  });
+
+  window.saveProfile = async () => {
+    if (!currentUser) return;
+    const name = document.getElementById('fieldName').value.trim();
+    const exam = document.getElementById('prefExam').value;
+    if (!name) { showToast('Please enter your name', 'error'); return; }
+
+    setBtnLoading('btnSaveProfile', true);
+    try {
+      await updateProfile(currentUser, { displayName: name });
+      await setDoc(doc(db,'users',currentUser.uid), { targetExam: exam }, { merge:true });
+      document.getElementById('profileName').textContent = name;
+      showToast('Profile updated ✓', 'success');
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+    setBtnLoading('btnSaveProfile', false);
+  };
+
+  window.changePassword = async () => {
+    if (!currentUser) return;
+    const current = document.getElementById('pwdCurrent').value;
+    const newPwd  = document.getElementById('pwdNew').value;
+    const confirm = document.getElementById('pwdConfirm').value;
+
+    if (!current || !newPwd || !confirm) { showToast('Fill all password fields', 'error'); return; }
+    if (newPwd.length < 6) { showToast('New password must be at least 6 characters', 'error'); return; }
+    if (newPwd !== confirm) { showToast('Passwords do not match', 'error'); return; }
+
+    setBtnLoading('btnChangePwd', true);
+    try {
+      const cred = EmailAuthProvider.credential(currentUser.email, current);
+      await reauthenticateWithCredential(currentUser, cred);
+      await updatePassword(currentUser, newPwd);
+      document.getElementById('pwdCurrent').value = '';
+      document.getElementById('pwdNew').value = '';
+      document.getElementById('pwdConfirm').value = '';
+      showToast('Password changed ✓', 'success');
+    } catch(e) {
+      const msg = e.code === 'auth/wrong-password' ? 'Current password is incorrect' : e.message;
+      showToast(msg, 'error');
+    }
+    setBtnLoading('btnChangePwd', false);
+  };
+
+  window.savePrefs = async () => {
+    if (!currentUser) return;
+    setBtnLoading('btnSavePrefs', true);
+    const prefs = {
+      notifications: document.getElementById('prefNotif').checked,
+      sounds:        document.getElementById('prefSound').checked,
+      streakReminder:document.getElementById('prefStreak').checked,
+    };
+    try {
+      await setDoc(doc(db,'users',currentUser.uid), { prefs }, { merge:true });
+      showToast('Preferences saved ✓', 'success');
+    } catch(e) {
+      showToast('Error saving preferences', 'error');
+    }
+    setBtnLoading('btnSavePrefs', false);
+  };
+
+  window.doSignOut = async () => {
+    await signOut(auth);
+    window.location.href = 'login.html';
+  };
+
+  window.resetProgress = async () => {
+    if (!currentUser) return;
+    if (!confirm('Reset all your progress and scores? This cannot be undone.')) return;
+    try {
+      await setDoc(doc(db,'users',currentUser.uid), { progress:{}, scores:[] }, { merge:true });
+      showToast('Progress reset successfully', 'success');
+    } catch(e) {
+      showToast('Error resetting progress', 'error');
+    }
+  };
+
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + type;
+    setTimeout(() => t.classList.remove('show'), 3200);
+  }
+
+  function setBtnLoading(id, loading) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.style.opacity = loading ? '0.65' : '1';
+  }
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--navy-light:#153465;--accent:#2563EB;--muted:#5B7291;--border:#E2E8F4;
+  --red:#EF4444;--font:'Plus Jakarta Sans',sans-serif;--r:14px;--rs:8px;
+}
+html,body{height:100%;font-family:var(--font);background:#fff;color:var(--navy)}
+
+.app-top{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--border);box-shadow:0 1px 8px rgba(10,22,40,0.05);padding:14px 20px;display:flex;align-items:center;gap:8px}
+.app-top img{height:26px;width:26px;object-fit:contain}
+.app-top span{font-size:15px;font-weight:800}
+
+.page{padding:18px 16px 100px;max-width:600px;margin:0 auto}
+
+.profile-card{background:linear-gradient(135deg,var(--navy),var(--navy-light));border-radius:var(--r);padding:22px 20px;margin-bottom:20px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;position:relative;overflow:hidden}
+.profile-card::before{content:'';position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:radial-gradient(circle,rgba(37,99,235,0.15) 0%,transparent 70%)}
+.avatar-big{width:64px;height:64px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;border:3px solid rgba(96,165,250,0.4);margin-bottom:6px}
+.pname{font-size:18px;font-weight:800;color:#fff}
+.pemail{font-size:12.5px;color:rgba(255,255,255,0.55)}
+.pjoined{font-size:10.5px;color:rgba(255,255,255,0.3);font-weight:600;text-transform:uppercase;letter-spacing:0.4px;margin-top:2px}
+
+.card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);box-shadow:0 2px 8px rgba(10,22,40,0.05);margin-bottom:16px;overflow:hidden}
+.card-head{padding:14px 18px;border-bottom:1px solid #EEF2F8;display:flex;align-items:center;gap:10px}
+.card-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.card-title{font-size:14px;font-weight:800}
+.card-sub{font-size:11px;color:var(--muted);margin-top:1px}
+.card-body{padding:16px 18px}
+
+.form-row{margin-bottom:14px}
+.form-row:last-child{margin-bottom:0}
+.form-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;display:block;color:var(--navy)}
+.form-input{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13.5px;font-family:var(--font);color:var(--navy);background:#fff;outline:none}
+.form-input:focus{border-color:var(--accent)}
+select.form-input{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:32px}
+
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #F0F4FB}
+.toggle-row:last-child{border-bottom:none}
+.ti-label{font-size:13px;font-weight:600}
+.ti-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.toggle{position:relative;width:42px;height:23px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-track{position:absolute;inset:0;background:#E2E8F4;border-radius:100px;cursor:pointer;transition:background .2s}
+.toggle input:checked + .toggle-track{background:var(--accent)}
+.toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+.toggle input:checked + .toggle-track::after{transform:translateX(19px)}
+
+.btn-primary{width:100%;padding:11px;border-radius:var(--rs);border:none;background:var(--navy);color:#fff;font-size:13.5px;font-weight:700;font-family:var(--font);cursor:pointer;margin-top:6px}
+.btn-danger{width:100%;padding:11px;border-radius:var(--rs);border:1.5px solid #FCA5A5;background:#FFF5F5;color:#DC2626;font-size:13.5px;font-weight:700;font-family:var(--font);cursor:pointer}
+
+.danger-zone{background:#FFF5F5;border:1.5px solid #FCA5A5;border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.danger-zone h3{font-size:14px;font-weight:800;color:#DC2626;margin-bottom:4px}
+.danger-zone p{font-size:12px;color:#7F1D1D;line-height:1.5;margin-bottom:12px}
+.danger-actions{display:flex;flex-direction:column;gap:8px}
+
+.toast{position:fixed;bottom:80px;left:16px;right:16px;z-index:999;padding:12px 18px;border-radius:10px;font-size:13.5px;font-weight:600;background:var(--navy);color:#fff;opacity:0;transform:translateY(12px);transition:all .3s;pointer-events:none;box-shadow:0 8px 24px rgba(10,22,40,0.2);text-align:center}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{border-left:4px solid #22C55E}
+.toast.error{border-left:4px solid #EF4444}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:64px;background:#fff;border-top:1px solid var(--border);box-shadow:0 -2px 12px rgba(10,22,40,0.06);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94A3B8;font-size:10.5px;font-weight:600;position:relative;background:none;border:none;font-family:var(--font)}
+.bn-icon{font-size:20px}
+.bn-item.active{color:var(--accent)}
+.bn-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:26px;height:3px;background:var(--accent);border-radius:0 0 3px 3px}
+</style>
+</head>
+<body>
+
+<header class="app-top">
+  <img src="logo.png" alt="Zenova"/>
+  <span>Zenova <b style="color:var(--accent)">Hub</b></span>
+</header>
+
+<div class="page">
+
+  <div class="profile-card">
+    <div class="avatar-big" id="avatarBig">??</div>
+    <div class="pname" id="profileName">Loading...</div>
+    <div class="pemail" id="profileEmail">...</div>
+    <div class="pjoined" id="profileJoined"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(37,99,235,0.1);color:var(--accent)">👤</div>
+      <div>
+        <div class="card-title">Account Details</div>
+        <div class="card-sub">Update your name and target exam</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <label class="form-label">Full Name</label>
+        <input class="form-input" id="fieldName" type="text" placeholder="Your full name"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Email Address</label>
+        <input class="form-input" id="fieldEmail" type="email" disabled/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Target Exam</label>
+        <select class="form-input" id="prefExam">
+          <option>JAMB 2027</option>
+          <option>WAEC 2027</option>
+          <option>JAMB 2028</option>
+        </select>
+      </div>
+      <button class="btn-primary" id="btnSaveProfile" onclick="saveProfile()">Save Profile</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(239,68,68,0.1);color:#EF4444">🔒</div>
+      <div>
+        <div class="card-title">Password</div>
+        <div class="card-sub">Change your account password</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="form-row">
+        <label class="form-label">Current Password</label>
+        <input class="form-input" id="pwdCurrent" type="password" placeholder="Enter current password"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">New Password</label>
+        <input class="form-input" id="pwdNew" type="password" placeholder="New password"/>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Confirm New Password</label>
+        <input class="form-input" id="pwdConfirm" type="password" placeholder="Repeat new password"/>
+      </div>
+      <button class="btn-primary" id="btnChangePwd" onclick="changePassword()">Change Password</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(14,165,233,0.1);color:#0EA5E9">⚙️</div>
+      <div>
+        <div class="card-title">Preferences</div>
+        <div class="card-sub">Notifications and reminders</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="toggle-row">
+        <div><div class="ti-label">Push Notifications</div><div class="ti-sub">Get notified about new tests</div></div>
+        <label class="toggle"><input type="checkbox" id="prefNotif"/><span class="toggle-track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="ti-label">Sound Effects</div><div class="ti-sub">Play sounds during quizzes</div></div>
+        <label class="toggle"><input type="checkbox" id="prefSound"/><span class="toggle-track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div><div class="ti-label">Streak Reminders</div><div class="ti-sub">Daily reminder to keep your streak</div></div>
+        <label class="toggle"><input type="checkbox" id="prefStreak"/><span class="toggle-track"></span></label>
+      </div>
+      <button class="btn-primary" id="btnSavePrefs" onclick="savePrefs()">Save Preferences</button>
+    </div>
+  </div>
+
+  <div class="danger-zone">
+    <h3>Danger Zone</h3>
+    <p>Reset your progress and scores, or sign out of your account.</p>
+    <div class="danger-actions">
+      <button class="btn-danger" onclick="resetProgress()">Reset All Progress</button>
+      <button class="btn-danger" onclick="doSignOut()">🚪 Log Out</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav class="bottom-nav">
+  <a href="home.html" class="bn-item"><span class="bn-icon">🏠</span>Home</a>
+  <a href="quiz.html" class="bn-item"><span class="bn-icon">📝</span>Quiz</a>
+  <a href="progress.html" class="bn-item"><span class="bn-icon">📊</span>Progress</a>
+  <a href="profile.html" class="bn-item active"><span class="bn-icon">👤</span>Profile</a>
+</nav>
+</body>
+</html>

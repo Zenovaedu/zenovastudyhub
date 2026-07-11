@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Notifications — Zenova Study Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const app  = initializeApp({apiKey:"AIzaSyBoKTKQh1FslukdDgp4YTLXDELyC7hSXBs",authDomain:"zenova-ecosystem.firebaseapp.com",projectId:"zenova-ecosystem",storageBucket:"zenova-ecosystem.firebasestorage.app",messagingSenderId:"104804319209",appId:"1:104804319209:web:fb6a4be936ef9447115578"});
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+  let uid = null;
+
+  // Seed notifications for first-time users so the page isn't empty on day one.
+  function seedNotifications() {
+    const now = Date.now();
+    return {
+      n_001: { title: 'Welcome to Zenova! 🎉', body: 'Set your target exam in Profile and take your first quiz to get started.', date: now - 1000*60*60*26, read: false, icon: '👋' },
+      n_002: { title: 'This week\'s quiz is live 📝', body: 'New questions have been added across all subjects. Jump in!', date: now - 1000*60*60*3, read: false, icon: '📝' },
+      n_003: { title: 'Keep your streak going 🔥', body: 'You haven\'t taken a test today — don\'t break your streak!', date: now - 1000*60*30, read: false, icon: '🔥' },
+      ...newAnnouncements(now),
+    };
+  }
+
+  // One-off announcements that get pushed to every user, new or existing.
+  // Add a new entry here (with a fresh key) any time you want to broadcast something.
+  function newAnnouncements(now) {
+    return {
+      n_004: { title: 'Join Zenova UTME 2027 Free Class 📚', body: 'Tap to join the WhatsApp group: <a href="https://chat.whatsapp.com/BfcrVxEJ8tM1BKPXaQGRJU" target="_blank" rel="noopener">chat.whatsapp.com/BfcrVxEJ8tM1BKPXaQGRJU</a>', date: now - 1000*60*10, read: false, icon: '💬' },
+      n_005: { title: 'Stay Connected with Zenova 🔗', body: 'Follow all our updates and links here: <a href="https://linktr.ee/zenovastudys" target="_blank" rel="noopener">linktr.ee/zenovastudys</a>', date: now - 1000*60*5, read: false, icon: '🔗' },
+    };
+  }
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href = 'login.html'; return; }
+    uid = user.uid;
+
+    const ref  = doc(db, 'users', uid);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? snap.data() : {};
+    let notifs = data.notifications;
+
+    if (!notifs || Object.keys(notifs).length === 0) {
+      notifs = seedNotifications();
+      await setDoc(ref, { notifications: notifs }, { merge: true });
+    } else {
+      // Top up existing users with any new broadcast announcements they don't have yet.
+      const toAdd = {};
+      const announcements = newAnnouncements(Date.now());
+      Object.entries(announcements).forEach(([id, n]) => {
+        if (!notifs[id]) toAdd[id] = n;
+      });
+      if (Object.keys(toAdd).length > 0) {
+        notifs = { ...notifs, ...toAdd };
+        await setDoc(ref, { notifications: toAdd }, { merge: true });
+      }
+    }
+
+    render(notifs);
+
+    // Mark everything as read now that the user has opened the page.
+    const anyUnread = Object.values(notifs).some(n => !n.read);
+    if (anyUnread) {
+      const updated = {};
+      Object.entries(notifs).forEach(([id, n]) => { updated[id] = { ...n, read: true }; });
+      await setDoc(ref, { notifications: updated }, { merge: true });
+    }
+  });
+
+  function timeAgo(ts) {
+    const diff = Date.now() - ts;
+    const mins = Math.floor(diff/60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.floor(mins/60);
+    if (hrs < 24) return hrs + 'h ago';
+    const days = Math.floor(hrs/24);
+    if (days < 7) return days + 'd ago';
+    return new Date(ts).toLocaleDateString('en-NG',{day:'numeric',month:'short'});
+  }
+
+  function render(notifs) {
+    const list = document.getElementById('notifList');
+    const entries = Object.entries(notifs).sort((a,b) => b[1].date - a[1].date);
+
+    if (!entries.length) {
+      list.innerHTML = `<div class="empty"><div class="empty-icon">🔔</div><p>No notifications yet.<br/>We'll let you know when something needs your attention.</p></div>`;
+      return;
+    }
+
+    list.innerHTML = entries.map(([id, n]) => `
+      <div class="nrow ${n.read ? '' : 'unread'}">
+        <div class="nicon">${n.icon || '🔔'}</div>
+        <div class="ncontent">
+          <div class="ntitle">${n.title}</div>
+          <div class="nbody">${n.body}</div>
+          <div class="ntime">${timeAgo(n.date)}</div>
+        </div>
+        ${n.read ? '' : '<div class="ndot"></div>'}
+      </div>
+    `).join('');
+  }
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--accent:#2563EB;--accent-dim:rgba(37,99,235,0.08);--muted:#5B7291;--border:#E2E8F4;
+  --font:'Plus Jakarta Sans',sans-serif;--r:14px;--rs:8px;
+}
+html,body{height:100%;font-family:var(--font);background:#fff;color:var(--navy)}
+
+.app-top{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--border);box-shadow:0 1px 8px rgba(10,22,40,0.05);padding:14px 20px;display:flex;align-items:center;gap:12px}
+.back-btn{width:32px;height:32px;border-radius:9px;background:#F1F5FB;display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none;color:var(--navy);flex-shrink:0}
+.app-top-title{font-size:16px;font-weight:800}
+
+.page{padding:16px 16px 40px;max-width:640px;margin:0 auto}
+
+.nrow{display:flex;align-items:flex-start;gap:12px;padding:14px 12px;border-radius:var(--r);margin-bottom:8px;position:relative;background:#fff;border:1.5px solid var(--border)}
+.nrow.unread{background:var(--accent-dim);border-color:rgba(37,99,235,0.25)}
+.nicon{width:38px;height:38px;border-radius:10px;background:#fff;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.ncontent{flex:1;min-width:0}
+.ntitle{font-size:13.5px;font-weight:800;margin-bottom:3px}
+.nbody{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:5px}
+.nbody a{color:var(--accent);font-weight:700;text-decoration:none;word-break:break-all}
+.nbody a:hover{text-decoration:underline}
+.ntime{font-size:11px;color:#94A3B8;font-weight:600}
+.ndot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;margin-top:4px}
+
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:36px;margin-bottom:12px}
+.empty p{font-size:13.5px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<header class="app-top">
+  <a href="home.html" class="back-btn">←</a>
+  <span class="app-top-title">Notifications</span>
+</header>
+
+<div class="page">
+  <div id="notifList"></div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Quiz — Zenova Study Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const app  = initializeApp({apiKey:"AIzaSyBoKTKQh1FslukdDgp4YTLXDELyC7hSXBs",authDomain:"zenova-ecosystem.firebaseapp.com",projectId:"zenova-ecosystem",storageBucket:"zenova-ecosystem.firebasestorage.app",messagingSenderId:"104804319209",appId:"1:104804319209:web:fb6a4be936ef9447115578"});
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+  let currentUser = null;
+
+  onAuthStateChanged(auth, user => {
+    if (!user) { window.location.href = 'login.html'; return; }
+    currentUser = user;
+  });
+
+  window.saveScore = async (subjectId, week, correct, total) => {
+    if (!currentUser) return;
+    const pct = Math.round((correct / total) * 100);
+    const ref  = doc(db, 'users', currentUser.uid);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? snap.data() : {};
+    const progress = data.progress || {};
+    progress[subjectId] = Math.max(progress[subjectId] || 0, pct);
+    const scoreEntry = { subjectId, week, score: pct, correct, total, date: Date.now() };
+    await setDoc(ref, { progress, scores: arrayUnion(scoreEntry) }, { merge: true });
+  };
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--navy-light:#153465;--accent:#2563EB;--accent-light:#3B82F6;
+  --accent-dim:rgba(37,99,235,0.12);--muted:#5B7291;--border:#E2E8F4;
+  --green:#22C55E;--red:#EF4444;--amber:#F59E0B;
+  --font:'Plus Jakarta Sans',sans-serif;--r:14px;--rs:8px;
+}
+html,body{height:100%;font-family:var(--font);background:#fff;color:var(--navy);overflow-x:hidden}
+
+.app-top{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--border);box-shadow:0 1px 8px rgba(10,22,40,0.05);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.app-top-brand{display:flex;align-items:center;gap:8px;text-decoration:none}
+.app-top-brand img{height:28px;width:28px;object-fit:contain}
+.app-top-brand span{font-size:15px;font-weight:800;color:var(--navy)}
+.app-top-brand span b{color:var(--accent)}
+
+.page{padding:18px 16px 100px;max-width:640px;margin:0 auto}
+
+/* PICK SCREEN */
+.screen{display:none}.screen.active{display:block}
+.pick-hero{background:linear-gradient(135deg,var(--navy),var(--navy-light));border-radius:var(--r);padding:20px 22px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.pick-hero h2{font-size:18px;font-weight:800;color:#fff;margin-bottom:3px}
+.pick-hero p{font-size:12.5px;color:rgba(255,255,255,0.6)}
+.week-pill{background:var(--accent);color:#fff;font-weight:800;font-size:12px;padding:6px 16px;border-radius:100px;white-space:nowrap}
+.subj-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.sc{background:#fff;border:1.5px solid var(--border);box-shadow:0 2px 6px rgba(10,22,40,0.04);border-radius:var(--r);padding:18px 12px;cursor:pointer;transition:all .2s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.sc:hover{border-color:var(--accent);box-shadow:0 6px 20px rgba(37,99,235,0.25)}
+.sc-icon{font-size:28px}
+.sc-name{font-size:13px;font-weight:700;line-height:1.3}
+.sc-meta{font-size:10.5px;color:var(--muted)}
+.sc-badge{background:var(--accent-dim);color:var(--accent);font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px}
+
+/* TEST SCREEN */
+.test-top{background:#fff;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(10,22,40,0.05);border-radius:var(--r);padding:14px 16px;margin-bottom:12px}
+.test-top-row1{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.test-subj-info{display:flex;align-items:center;gap:8px}
+.test-subj-icon{font-size:22px}
+.test-subj-name{font-size:15px;font-weight:800}
+.test-subj-week{font-size:11px;color:var(--muted);margin-top:1px}
+.timer{background:var(--navy);color:#fff;font-size:16px;font-weight:800;padding:7px 14px;border-radius:var(--rs);font-variant-numeric:tabular-nums;min-width:74px;text-align:center}
+.timer.warn{background:var(--amber)}
+.timer.danger{background:var(--red);animation:blink .5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+.test-top-row2{display:flex;align-items:center;gap:8px}
+.prog-bar{flex:1;height:6px;background:#E8EDF5;border-radius:4px;overflow:hidden}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-light));border-radius:4px;transition:width .4s}
+.prog-txt{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+.q-dots{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.qdot{width:8px;height:8px;border-radius:50%;background:#E2E8F4;border:1.5px solid transparent;cursor:pointer;transition:all .2s;flex-shrink:0}
+.qdot.cur{border-color:var(--navy);transform:scale(1.3)}
+.qdot.ok{background:var(--green);border-color:var(--green)}
+.qdot.bad{background:var(--red);border-color:var(--red)}
+
+.qcard{background:#fff;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(10,22,40,0.05);border-radius:var(--r);padding:20px 18px 16px;margin-bottom:12px}
+.q-num-tag{font-size:10.5px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}
+.q-text{font-size:15px;font-weight:700;line-height:1.5;margin-bottom:18px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--rs);cursor:pointer;transition:all .2s;font-size:13.5px;font-weight:500;background:#fff;text-align:left}
+.opt:hover:not(.locked){border-color:var(--accent);background:var(--accent-dim)}
+.opt.sel{border-color:var(--accent);background:var(--accent-dim);font-weight:700}
+.opt.ok{border-color:var(--green);background:rgba(34,197,94,0.09);font-weight:700;color:#166534}
+.opt.bad{border-color:var(--red);background:rgba(239,68,68,0.08);font-weight:700;color:#991B1B}
+.opt.locked{cursor:default}
+.opt-ltr{width:26px;height:26px;border-radius:50%;background:#E8EDF5;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0}
+.opt.sel .opt-ltr{background:var(--accent);color:#fff}
+.opt.ok .opt-ltr{background:var(--green);color:#fff}
+.opt.bad .opt-ltr{background:var(--red);color:#fff}
+.exp-box{margin-top:12px;padding:11px 14px;border-radius:0 var(--rs) var(--rs) 0;font-size:12.5px;line-height:1.6;display:none}
+.exp-box.show{display:block}
+.exp-box.ok-exp{background:rgba(34,197,94,0.08);border-left:3px solid var(--green);color:#166534}
+.exp-box.bad-exp{background:rgba(239,68,68,0.07);border-left:3px solid var(--red);color:#991B1B}
+
+.test-nav{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.btn-prev{padding:10px 18px;border-radius:var(--rs);border:1.5px solid var(--border);background:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--font)}
+.btn-prev:disabled{opacity:.4;cursor:not-allowed}
+.btn-next{padding:10px 24px;border-radius:var(--rs);border:none;background:var(--accent);color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:var(--font);box-shadow:0 4px 14px rgba(37,99,235,0.3)}
+.btn-next.submit{background:var(--green);box-shadow:0 4px 14px rgba(34,197,94,0.3)}
+
+/* RESULT */
+.result-wrap{max-width:480px;margin:20px auto 0}
+.result-card{background:#fff;border:1.5px solid var(--border);border-radius:20px;padding:32px 24px;text-align:center}
+.res-ring{position:relative;width:130px;height:130px;margin:0 auto 20px}
+.res-ring svg{position:absolute;inset:0}
+.res-ring-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.res-pct{font-size:32px;font-weight:800;line-height:1}
+.res-pct small{font-size:16px}
+.res-grade{font-size:12px;font-weight:700;margin-top:3px}
+.res-title{font-size:20px;font-weight:800;margin-bottom:6px}
+.res-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:22px}
+.res-stats{display:flex;justify-content:center;gap:20px;margin-bottom:26px;flex-wrap:wrap}
+.rs .rv{font-size:22px;font-weight:800}
+.rs .rl{font-size:11px;color:var(--muted);margin-top:2px}
+.res-btns{display:flex;flex-direction:column;gap:8px}
+.btn-g{background:var(--accent);color:#fff;font-weight:800;font-size:13.5px;padding:11px 20px;border-radius:var(--rs);border:none;cursor:pointer;font-family:var(--font);text-decoration:none}
+.btn-o{background:transparent;color:var(--navy);font-weight:700;font-size:13.5px;padding:11px 20px;border-radius:var(--rs);border:1.5px solid var(--border);cursor:pointer;font-family:var(--font);text-decoration:none}
+
+.modal-bg{position:fixed;inset:0;background:rgba(10,22,40,0.5);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.show{display:flex}
+@media(min-width:640px){.modal-bg{align-items:center}}
+.modal-card{background:#fff;border-radius:20px 20px 0 0;padding:22px 20px calc(20px + env(safe-area-inset-bottom));width:100%;max-width:420px;animation:slideUp .25s ease}
+@media(min-width:640px){.modal-card{border-radius:20px}}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-subj{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.modal-subj-icon{font-size:24px}
+.modal-subj-name{font-size:16px;font-weight:800}
+.modal-sub{font-size:12.5px;color:var(--muted);margin-bottom:18px}
+.count-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.count-opt{border:1.5px solid var(--border);border-radius:var(--rs);padding:14px 10px;text-align:center;cursor:pointer;transition:all .15s;background:#fff}
+.count-opt:hover:not(.disabled){border-color:var(--accent);background:var(--accent-dim)}
+.count-opt.disabled{opacity:.4;cursor:not-allowed}
+.count-opt-n{font-size:19px;font-weight:800;color:var(--navy)}
+.count-opt-l{font-size:10.5px;color:var(--muted);margin-top:2px}
+.modal-cancel{width:100%;text-align:center;padding:12px;font-weight:700;font-size:13px;color:var(--muted);background:none;border:none;cursor:pointer;font-family:var(--font)}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:64px;background:#fff;border-top:1px solid var(--border);box-shadow:0 -2px 12px rgba(10,22,40,0.06);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94A3B8;font-size:10.5px;font-weight:600;position:relative}
+.bn-icon{font-size:20px}
+.bn-item.active{color:var(--accent)}
+.bn-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:26px;height:3px;background:var(--accent);border-radius:0 0 3px 3px}
+
+@media(min-width:640px){
+  .subj-grid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+</head>
+<body>
+
+<header class="app-top">
+  <a href="home.html" class="app-top-brand">
+    <img src="logo.png" alt="Zenova"/>
+    <span>Zenova <b>Hub</b></span>
+  </a>
+</header>
+
+<div class="page">
+
+  <div class="screen active" id="pickScreen">
+    <div class="pick-hero">
+      <div>
+        <h2>Choose a Subject 📝</h2>
+        <p>Pick your subject, then choose how many questions</p>
+      </div>
+      <div class="week-pill">📅 Live Now</div>
+    </div>
+    <div class="subj-grid" id="subjGrid"></div>
+  </div>
+
+  <div class="modal-bg" id="countModal" onclick="if(event.target===this)closeCountModal()">
+    <div class="modal-card">
+      <div class="modal-subj">
+        <div class="modal-subj-icon" id="mIcon"></div>
+        <div class="modal-subj-name" id="mName"></div>
+      </div>
+      <div class="modal-sub">How many questions do you want?</div>
+      <div class="count-grid" id="countGrid"></div>
+      <button class="modal-cancel" onclick="closeCountModal()">Cancel</button>
+    </div>
+  </div>
+
+  <div class="screen" id="testScreen">
+    <div class="test-top">
+      <div class="test-top-row1">
+        <div class="test-subj-info">
+          <div class="test-subj-icon" id="tIcon"></div>
+          <div>
+            <div class="test-subj-name" id="tName"></div>
+            <div class="test-subj-week">20 Questions · 25 mins</div>
+          </div>
+        </div>
+        <div class="timer" id="timer">25:00</div>
+      </div>
+      <div class="test-top-row2">
+        <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:5%"></div></div>
+        <div class="prog-txt" id="progTxt">1/20</div>
+      </div>
+      <div class="q-dots" id="qDots"></div>
+    </div>
+
+    <div class="qcard">
+      <div class="q-num-tag" id="qNum">Question 1 of 20</div>
+      <div class="q-text" id="qText"></div>
+      <div class="opts" id="opts"></div>
+      <div class="exp-box" id="expBox"></div>
+    </div>
+
+    <div class="test-nav">
+      <button class="btn-prev" id="prevBtn" onclick="go(-1)" disabled>← Prev</button>
+      <button class="btn-next" id="nextBtn" onclick="go(1)">Next →</button>
+    </div>
+  </div>
+
+  <div class="screen" id="resultScreen">
+    <div class="result-wrap">
+      <div class="result-card">
+        <div class="res-ring">
+          <svg width="130" height="130" viewBox="0 0 150 150">
+            <circle cx="75" cy="75" r="62" fill="none" stroke="#EEF0F6" stroke-width="9"/>
+            <circle cx="75" cy="75" r="62" fill="none" id="resRing"
+              stroke="#2563EB" stroke-width="9" stroke-linecap="round"
+              stroke-dasharray="389.6" stroke-dashoffset="389.6"
+              transform="rotate(-90 75 75)" style="transition:stroke-dashoffset 1.4s ease"/>
+          </svg>
+          <div class="res-ring-inner">
+            <div class="res-pct" id="resPct">0<small>%</small></div>
+            <div class="res-grade" id="resGrade"></div>
+          </div>
+        </div>
+        <div class="res-title" id="resTitle">Test Complete!</div>
+        <div class="res-sub" id="resSub"></div>
+        <div class="res-stats">
+          <div class="rs"><div class="rv" id="rsCorrect">0</div><div class="rl">✅ Correct</div></div>
+          <div class="rs"><div class="rv" id="rsWrong">0</div><div class="rl">❌ Wrong</div></div>
+          <div class="rs"><div class="rv" id="rsSkipped">0</div><div class="rl">⏭ Skip</div></div>
+          <div class="rs"><div class="rv" id="rsTime">—</div><div class="rl">⏱ Time</div></div>
+        </div>
+        <div class="res-btns">
+          <button class="btn-g" onclick="retake()">🔁 Retake Test</button>
+          <a href="quiz.html" class="btn-o">📚 Other Subjects</a>
+          <a href="progress.html" class="btn-o">📈 View Progress</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<nav class="bottom-nav">
+  <a href="home.html" class="bn-item"><span class="bn-icon">🏠</span>Home</a>
+  <a href="quiz.html" class="bn-item active"><span class="bn-icon">📝</span>Quiz</a>
+  <a href="progress.html" class="bn-item"><span class="bn-icon">📊</span>Progress</a>
+  <a href="profile.html" class="bn-item"><span class="bn-icon">👤</span>Profile</a>
+</nav>
+
+<script>
+const SUBJECTS = [
+  {id:'physics', name:'Physics',               icon:'⚛️',  color:'#1D4ED8'},
+  {id:'chem',    name:'Chemistry',             icon:'🧪', color:'#3B82F6'},
+  {id:'math',    name:'Mathematics',           icon:'🔢', color:'#1E3A8A'},
+  {id:'bio',     name:'Biology',               icon:'🌿', color:'#0369A1'},
+  {id:'geo',     name:'Geography',             icon:'🌍', color:'#0EA5E9'},
+  {id:'agric',   name:'Agric Science',         icon:'🌾', color:'#38BDF8'},
+  {id:'english', name:'English Language',      icon:'📚', color:'#2563EB'},
+  {id:'crs',     name:'CRS',                   icon:'✝️',  color:'#075985'},
+  {id:'lit',     name:'Literature in English', icon:'📖', color:'#0284C7'},
+  {id:'govt',    name:'Government',            icon:'🏛️',  color:'#123D7A'},
+  {id:'history', name:'History',               icon:'📜', color:'#0C4A6E'},
+  {id:'econ',    name:'Economics',             icon:'💰', color:'#2F6FEF'},
+  {id:'commerce',name:'Commerce',              icon:'💼', color:'#60A5FA'},
+  {id:'irk',      name:'IRK',                   icon:'🕌', color:'#1E40AF'},
+  {id:'account', name:'Accounting',            icon:'🧮', color:'#0891B2'},
+];
+
+const QUESTIONS = {
+  physics:[
+  {"q": "The SI unit of length is the", "o": ["gram", "metre", "second", "kelvin"], "a": 1, "e": "The metre (m) is the SI base unit of length."},
+  {"q": "The SI unit of mass is the", "o": ["Newton", "kilogram", "litre", "joule"], "a": 1, "e": "The kilogram (kg) is the SI base unit of mass."},
+  {"q": "The SI unit of time is the", "o": ["hour", "minute", "second", "day"], "a": 2, "e": "The second (s) is the SI base unit of time."},
+  {"q": "The SI unit of temperature is the", "o": ["Celsius", "Fahrenheit", "Kelvin", "Joule"], "a": 2, "e": "The Kelvin (K) is the SI base unit of temperature, used in scientific measurement."},
+  {"q": "An instrument used to measure length accurately to about 0.01 cm, using a main scale and a sliding jaw, is the", "o": ["Metre rule", "Vernier caliper", "Micrometer screw gauge", "Measuring tape"], "a": 1, "e": "The vernier caliper measures length with higher precision (about 0.01 cm) than an ordinary metre rule, using main and vernier scales."},
+  {"q": "An instrument used to measure very small lengths, such as the diameter of a wire, with even greater precision than a vernier caliper, is the", "o": ["Metre rule", "Measuring tape", "Micrometer screw gauge", "Protractor"], "a": 2, "e": "The micrometer screw gauge measures very small dimensions with high precision, typically to 0.01 mm."},
+  {"q": "The fundamental (base) physical quantities in the SI system include", "o": ["length, mass, time, temperature, electric current", "force, energy, and power only", "speed and velocity only", "weight and density only"], "a": 0, "e": "Fundamental quantities are the basic quantities from which other quantities are derived; they include length, mass, time, temperature, and electric current, among others."},
+  {"q": "A derived physical quantity is one that is", "o": ["measured directly with a single instrument only", "obtained by combining two or more fundamental quantities", "impossible to calculate", "the same as a fundamental quantity"], "a": 1, "e": "Derived quantities, like speed (length/time) or force, are obtained by combining fundamental quantities through mathematical relationships."},
+  {"q": "A scalar quantity is one that has", "o": ["magnitude and direction", "magnitude only, no direction", "direction only, no magnitude", "neither magnitude nor direction"], "a": 1, "e": "A scalar quantity is fully described by its magnitude (size) alone, without any associated direction, e.g. mass, distance, time."},
+  {"q": "A vector quantity is one that has", "o": ["magnitude only", "both magnitude and direction", "direction only", "neither magnitude nor direction"], "a": 1, "e": "A vector quantity requires both magnitude and direction for a complete description, e.g. displacement, velocity, force."},
+  {"q": "Which of the following is a scalar quantity?", "o": ["Displacement", "Force", "Speed", "Velocity"], "a": 2, "e": "Speed is a scalar quantity, as it has magnitude only, without a specified direction (unlike velocity)."},
+  {"q": "Which of the following is a vector quantity?", "o": ["Mass", "Time", "Displacement", "Energy"], "a": 2, "e": "Displacement is a vector quantity because it has both magnitude and a specific direction."},
+  {"q": "Distance differs from displacement mainly because distance is", "o": ["a vector quantity, while displacement is a scalar", "the total path length covered, while displacement is the shortest straight-line distance with direction", "always smaller than displacement", "not measurable in metres"], "a": 1, "e": "Distance is a scalar (total path length travelled), while displacement is a vector (the straight-line distance and direction from start to end point)."},
+  {"q": "Speed is defined as", "o": ["distance covered per unit time", "displacement per unit time", "force applied per unit area", "the rate of change of velocity"], "a": 0, "e": "Speed is the rate at which distance is covered, calculated as distance divided by time."},
+  {"q": "Velocity is defined as", "o": ["distance covered per unit time", "the rate of change of displacement with time, in a specified direction", "the total distance travelled", "mass multiplied by acceleration"], "a": 1, "e": "Velocity is the rate of change of displacement with time, and unlike speed, it includes direction."},
+  {"q": "Acceleration is defined as", "o": ["distance covered per unit time", "the rate of change of velocity with time", "the total force applied to an object", "the mass of a moving object"], "a": 1, "e": "Acceleration is the rate at which velocity changes with time; it occurs when an object speeds up, slows down, or changes direction."},
+  {"q": "A car travels 150 km in 3 hours. Its average speed is", "o": ["30 km/h", "50 km/h", "450 km/h", "100 km/h"], "a": 1, "e": "Average speed = distance/time = 150/3 = 50 km/h."},
+  {"q": "A body moving with constant speed in a straight line has", "o": ["zero velocity", "zero acceleration", "increasing acceleration", "undefined speed"], "a": 1, "e": "If speed and direction remain constant, velocity does not change, so acceleration is zero."},
+  {"q": "The gravitational field of the Earth is best described as the", "o": ["region around Earth in which a mass experiences a gravitational force of attraction", "area with no gravity at all", "only the space directly above the Earth's surface", "the magnetic field of the Earth"], "a": 0, "e": "The gravitational field is the region of space around a mass (like Earth) within which another mass experiences a gravitational pull."},
+  {"q": "The acceleration due to gravity near the Earth's surface is approximately", "o": ["9.8 m/s²", "5.0 m/s²", "1.6 m/s²", "20.0 m/s²"], "a": 0, "e": "The acceleration due to gravity (g) near the Earth's surface is approximately 9.8 m/s² (often approximated as 10 m/s²)."},
+  {"q": "The weight of an object is best defined as", "o": ["the amount of matter it contains", "the gravitational force acting on its mass", "its volume", "its density"], "a": 1, "e": "Weight is the force exerted on an object due to gravity, calculated as W = mg (mass × gravitational acceleration)."},
+],
+  chem:[
+  {"q": "The process of separating a mixture of solid particles of different sizes using a mesh is called", "o": ["Decantation", "Sieving", "Evaporation", "Sublimation"], "a": 1, "e": "Sieving separates solid particles of different sizes by passing the mixture through a mesh or sieve."},
+  {"q": "The technique used to separate a solid from a liquid by pouring off the liquid, leaving the solid behind, is called", "o": ["Filtration", "Decantation", "Distillation", "Crystallization"], "a": 1, "e": "Decantation is the process of carefully pouring off a liquid from a settled solid, without disturbing the sediment."},
+  {"q": "The technique used to separate an insoluble solid from a liquid using a porous material is called", "o": ["Filtration", "Evaporation", "Sublimation", "Chromatography"], "a": 0, "e": "Filtration separates an insoluble solid from a liquid by passing the mixture through a filter paper or porous material."},
+  {"q": "The process of obtaining a solid from its solution by heating off the liquid is called", "o": ["Filtration", "Evaporation", "Decantation", "Sieving"], "a": 1, "e": "Evaporation involves heating a solution to drive off the liquid (solvent), leaving the dissolved solid behind."},
+  {"q": "The process used to separate a mixture of miscible liquids with different boiling points is called", "o": ["Filtration", "Simple distillation", "Sieving", "Decantation"], "a": 1, "e": "Distillation separates liquids with different boiling points by heating, vaporizing, and then condensing them separately."},
+  {"q": "The process by which a solid changes directly into a gas without passing through the liquid state is called", "o": ["Evaporation", "Sublimation", "Condensation", "Filtration"], "a": 1, "e": "Sublimation is the direct change of a substance from solid to gas (or gas to solid) without passing through a liquid phase, e.g. iodine or dry ice."},
+  {"q": "The technique used to separate the components of a mixture based on their different rates of movement through a medium is called", "o": ["Chromatography", "Crystallization", "Decantation", "Sieving"], "a": 0, "e": "Chromatography separates mixture components based on differing rates of movement through a stationary medium, often using a solvent."},
+  {"q": "The process of obtaining pure solid crystals from a saturated solution as it cools is called", "o": ["Sublimation", "Crystallization", "Filtration", "Sieving"], "a": 1, "e": "Crystallization is the process by which pure solid crystals form as a saturated solution cools and the dissolved substance comes out of solution."},
+  {"q": "A mixture of two immiscible liquids (e.g. oil and water) is best separated using a", "o": ["filter funnel", "separating funnel", "Bunsen burner", "measuring cylinder"], "a": 1, "e": "A separating funnel is used to separate immiscible liquids based on their different densities, allowing them to be drawn off separately."},
+  {"q": "Purification of a substance is important mainly because it helps to", "o": ["increase the mass of the substance", "remove unwanted impurities and obtain the substance in its pure form", "change the chemical identity of the substance", "add colour to the substance"], "a": 1, "e": "Purification removes impurities from a substance, ensuring it is obtained in a chemically pure state for accurate use or study."},
+  {"q": "A chemical combination in which two or more elements combine in fixed proportions to form a compound illustrates the law of", "o": ["conservation of mass", "constant (definite) proportions", "multiple proportions", "octaves"], "a": 1, "e": "The law of constant (definite) proportions states that a chemical compound always contains its constituent elements in fixed proportion by mass."},
+  {"q": "The law of conservation of mass states that in a chemical reaction, mass is", "o": ["always destroyed", "always created", "neither created nor destroyed, only transformed", "doubled"], "a": 2, "e": "The law of conservation of mass states that mass is neither created nor destroyed in a chemical reaction, only rearranged."},
+  {"q": "A chemical equation must be balanced mainly to satisfy the", "o": ["law of octaves", "law of conservation of mass", "periodic law", "law of multiple proportions"], "a": 1, "e": "Balancing a chemical equation ensures the number of atoms of each element is equal on both sides, consistent with the law of conservation of mass."},
+  {"q": "In the balanced equation 2H₂ + O₂ → 2H₂O, the number of hydrogen atoms on the reactant side is", "o": ["2", "4", "6", "8"], "a": 1, "e": "2H₂ represents 2 molecules of hydrogen gas, each with 2 atoms, giving a total of 4 hydrogen atoms."},
+  {"q": "The mole is defined as the amount of substance that contains as many elementary particles as there are atoms in", "o": ["1 g of hydrogen", "12 g of carbon-12", "1 litre of water", "100 g of oxygen"], "a": 1, "e": "One mole is defined as the amount of substance containing the same number of particles as there are atoms in exactly 12 grams of carbon-12."},
+  {"q": "The number of particles in one mole of any substance, known as Avogadro's number, is approximately", "o": ["6.02 × 10²³", "3.14 × 10²³", "1.6 × 10⁻¹⁹", "9.8 × 10⁴"], "a": 0, "e": "Avogadro's number, 6.02 × 10²³, represents the number of particles (atoms, molecules, or ions) in one mole of a substance."},
+  {"q": "The molar mass of a substance is the mass of", "o": ["one atom of the substance", "one mole of the substance, expressed in grams per mole", "one litre of the substance", "one gram of the substance"], "a": 1, "e": "Molar mass is the mass of one mole of a substance, expressed in grams per mole (g/mol)."},
+  {"q": "The number of moles in 32 g of oxygen gas, O₂ (molar mass 32 g/mol), is", "o": ["0.5 mol", "1 mol", "2 mol", "4 mol"], "a": 1, "e": "Number of moles = mass/molar mass = 32/32 = 1 mol."},
+  {"q": "Stoichiometry in chemistry refers to the", "o": ["study of atomic structure", "quantitative relationship between reactants and products in a chemical reaction", "classification of elements in the periodic table", "study of chemical bonding only"], "a": 1, "e": "Stoichiometry is the study of the quantitative (mole) relationships between reactants and products in a balanced chemical equation."},
+  {"q": "In the equation N₂ + 3H₂ → 2NH₃, how many moles of hydrogen gas are needed to react completely with 1 mole of nitrogen gas?", "o": ["1 mole", "2 moles", "3 moles", "4 moles"], "a": 2, "e": "According to the balanced equation, 1 mole of N₂ requires 3 moles of H₂ to react completely, producing 2 moles of NH₃."},
+],
+  math:[
+  {"q": "Solve for x: 2x + 5 = 17", "o": ["4", "5", "6", "7"], "a": 2, "e": "2x = 17 - 5 = 12, so x = 6."},
+  {"q": "Solve for x: 3(x - 2) = 15", "o": ["5", "6", "7", "9"], "a": 2, "e": "3x - 6 = 15, so 3x = 21, x = 7."},
+  {"q": "Factorize: x² - 9", "o": ["(x-3)(x-3)", "(x+3)(x-3)", "(x+9)(x-1)", "(x-9)(x+1)"], "a": 1, "e": "x² - 9 is a difference of two squares: (x+3)(x-3)."},
+  {"q": "Solve the quadratic equation: x² - 5x + 6 = 0", "o": ["x = 1, 6", "x = 2, 3", "x = -2, -3", "x = 5, 1"], "a": 1, "e": "Factorizing: (x-2)(x-3) = 0, so x = 2 or x = 3."},
+  {"q": "The sum of the interior angles of a triangle is", "o": ["90°", "180°", "270°", "360°"], "a": 1, "e": "The interior angles of any triangle always sum to 180°."},
+  {"q": "The sum of the interior angles of a quadrilateral is", "o": ["180°", "270°", "360°", "450°"], "a": 2, "e": "A quadrilateral can be split into 2 triangles, so its interior angles sum to 2 × 180° = 360°."},
+  {"q": "Find the area of a rectangle with length 8 cm and width 5 cm.", "o": ["13 cm²", "26 cm²", "40 cm²", "45 cm²"], "a": 2, "e": "Area of rectangle = length × width = 8 × 5 = 40 cm²."},
+  {"q": "Find the area of a circle with radius 7 cm. (Take π = 22/7)", "o": ["44 cm²", "88 cm²", "154 cm²", "308 cm²"], "a": 2, "e": "Area = πr² = 22/7 × 7 × 7 = 154 cm²."},
+  {"q": "Find the circumference of a circle with radius 7 cm. (Take π = 22/7)", "o": ["22 cm", "44 cm", "154 cm", "88 cm"], "a": 1, "e": "Circumference = 2πr = 2 × 22/7 × 7 = 44 cm."},
+  {"q": "In a right-angled triangle, the side opposite the right angle is called the", "o": ["adjacent", "opposite", "hypotenuse", "perpendicular"], "a": 2, "e": "The hypotenuse is the longest side, opposite the right angle, in a right-angled triangle."},
+  {"q": "A right triangle has legs of 6 cm and 8 cm. Find the hypotenuse.", "o": ["8 cm", "10 cm", "12 cm", "14 cm"], "a": 1, "e": "By Pythagoras: √(6²+8²) = √(36+64) = √100 = 10 cm."},
+  {"q": "sin²θ + cos²θ is equal to", "o": ["0", "1", "tanθ", "2"], "a": 1, "e": "This is a fundamental trigonometric identity: sin²θ + cos²θ = 1 for all angles θ."},
+  {"q": "Find the mean of the numbers: 4, 8, 6, 10, 2", "o": ["5", "6", "7", "8"], "a": 1, "e": "Mean = (4+8+6+10+2)/5 = 30/5 = 6."},
+  {"q": "Find the median of the numbers: 3, 7, 9, 4, 6", "o": ["4", "6", "7", "9"], "a": 1, "e": "Arranged: 3,4,6,7,9. The middle value is 6."},
+  {"q": "Find the mode of the numbers: 2, 3, 3, 5, 7, 3, 9", "o": ["2", "3", "5", "7"], "a": 1, "e": "The mode is the number that appears most frequently — 3 appears three times."},
+  {"q": "A number is chosen at random from 1 to 20. What is the probability that it is even?", "o": ["1/4", "1/2", "1/3", "3/4"], "a": 1, "e": "There are 10 even numbers out of 20, so probability = 10/20 = 1/2."},
+  {"q": "Simplify: (2x³)(3x²)", "o": ["5x⁵", "6x⁵", "6x⁶", "5x⁶"], "a": 1, "e": "Multiply coefficients (2×3=6) and add exponents (3+2=5): 6x⁵."},
+  {"q": "Make y the subject of the formula: 3y - 4 = 2x", "o": ["y = (2x+4)/3", "y = (2x-4)/3", "y = 2x + 4", "y = (2x)/3 - 4"], "a": 0, "e": "3y = 2x + 4, so y = (2x+4)/3."},
+  {"q": "The nth term of the arithmetic progression 2, 5, 8, 11, ... is given by", "o": ["3n - 1", "3n + 1", "2n + 3", "n + 2"], "a": 0, "e": "First term a=2, common difference d=3. nth term = a + (n-1)d = 2 + 3n - 3 = 3n - 1."},
+  {"q": "Find the 6th term of the arithmetic progression 2, 5, 8, 11, ...", "o": ["14", "17", "20", "23"], "a": 1, "e": "nth term = 3n - 1. For n=6: 3(6)-1 = 17."},
+  {"q": "A bag contains 4 red and 6 blue balls. What is the probability of picking a red ball?", "o": ["2/5", "3/5", "1/2", "2/3"], "a": 0, "e": "Total balls = 10, red balls = 4, so probability = 4/10 = 2/5."},
+  {"q": "Evaluate: (-3) × (-4)", "o": ["-12", "12", "-7", "7"], "a": 1, "e": "A negative number multiplied by a negative number gives a positive result: (-3)×(-4) = 12."},
+  {"q": "Solve the inequality: 2x - 3 > 7", "o": ["x > 2", "x > 5", "x < 5", "x > 10"], "a": 1, "e": "2x > 10, so x > 5."},
+  {"q": "Simplify: 3/4 - 1/6", "o": ["7/12", "1/3", "2/3", "5/12"], "a": 0, "e": "LCM of 4 and 6 is 12. 9/12 - 2/12 = 7/12."},
+  {"q": "Find the perimeter of a square with side length 9 cm.", "o": ["18 cm", "27 cm", "36 cm", "81 cm"], "a": 2, "e": "Perimeter of a square = 4 × side = 4 × 9 = 36 cm."},
+  {"q": "If y varies directly as x, and y = 12 when x = 4, find y when x = 7.", "o": ["18", "21", "24", "28"], "a": 1, "e": "y = kx, so 12 = 4k, k = 3. When x=7, y = 3×7 = 21."},
+  {"q": "Simplify: 2³ × 2⁻¹", "o": ["2", "4", "8", "16"], "a": 1, "e": "Add exponents: 2^(3 + (-1)) = 2² = 4."},
+  {"q": "The gradient (slope) of the line joining points (2,3) and (6,11) is", "o": ["1", "2", "3", "4"], "a": 1, "e": "Gradient = (11-3)/(6-2) = 8/4 = 2."},
+  {"q": "Express 3/5 as a percentage.", "o": ["30%", "35%", "60%", "65%"], "a": 2, "e": "3/5 = 0.6, and 0.6 × 100 = 60%."},
+  {"q": "A trader buys an item for ₦2,000 and sells it for ₦2,500. Find the percentage profit.", "o": ["20%", "25%", "30%", "50%"], "a": 1, "e": "Profit = 500. Percentage profit = (500/2000) × 100 = 25%."},
+    {q:"Convert 101101₂ to base ten.",o:["43","45","47","49"],a:1,e:"1×32 + 0×16 + 1×8 + 1×4 + 0×2 + 1×1 = 32+8+4+1 = 45."},
+    {q:"Express 45₁₀ in base two.",o:["101011","101101","110101","110011"],a:1,e:"45 = 32+8+4+1 = 101101₂."},
+    {q:"Evaluate: 5/3 + 5/2",o:["5/1","10/3","1","25/6"],a:3,e:"LCM of 3 and 2 is 6. 10/6 + 15/6 = 25/6."},
+    {q:"Express 0.375 as a fraction in its simplest form.",o:["3/8","5/8","7/8","1/4"],a:0,e:"0.375 = 375/1000 = 3/8."},
+    {q:"Find 20% of 350.",o:["60","65","70","75"],a:2,e:"20/100 × 350 = 70."},
+    {q:"Evaluate: 2⁵",o:["16","25","32","64"],a:2,e:"2⁵ = 2×2×2×2×2 = 32."},
+    {q:"Simplify: 3² × 3⁴",o:["3⁶","3⁸","9⁶","6³"],a:0,e:"Same base: add exponents → 3^(2+4) = 3⁶."},
+    {q:"Evaluate: log₁₀ 1000",o:["1","2","3","4"],a:2,e:"log₁₀ 1000 = log₁₀ 10³ = 3."},
+    {q:"Simplify: √81",o:["7","8","9","10"],a:2,e:"9 × 9 = 81, so √81 = 9."},
+    {q:"Express 0.45 as a percentage.",o:["4.5%","45%","450%","0.45%"],a:1,e:"0.45 × 100 = 45%."},
+    {q:"Convert 1111₂ to base ten.",o:["13","14","15","16"],a:2,e:"1×8 + 1×4 + 1×2 + 1×1 = 8+4+2+1 = 15."},
+    {q:"Simplify: 9/4 ÷ 3/2",o:["3/2","2/3","27/8","3/4"],a:0,e:"9/4 ÷ 3/2 = 9/4 × 2/3 = 18/12 = 3/2."},
+    {q:"Evaluate: 5⁻¹",o:["5","-5","1/5","25"],a:2,e:"A negative exponent means reciprocal: 5⁻¹ = 1/5."},
+    {q:"Evaluate: log₁₀ 1",o:["0","1","10","Undefined"],a:0,e:"log₁₀ 1 = 0 because 10⁰ = 1."},
+    {q:"Simplify: √50",o:["5√2","10√5","25√2","2√5"],a:0,e:"√50 = √(25×2) = 5√2."},
+    {q:"Express 7/20 as a decimal.",o:["0.25","0.30","0.35","0.40"],a:2,e:"7 ÷ 20 = 0.35."},
+    {q:"A shirt costing ₦8,000 is sold at a 15% discount. Find the discount.",o:["₦1,000","₦1,200","₦1,500","₦1,800"],a:1,e:"15/100 × 8000 = ₦1,200."},
+    {q:"Simplify: 4³ ÷ 4²",o:["2","4","8","16"],a:1,e:"Same base: subtract exponents → 4^(3-2) = 4¹ = 4."},
+    {q:"If 2ˣ = 32, find x.",o:["3","4","5","6"],a:2,e:"2⁵ = 32, so x = 5."},
+    {q:"Evaluate: √144",o:["10","11","12","14"],a:2,e:"12 × 12 = 144, so √144 = 12."},
+  ],
+  bio:[
+  {"q": "Which of the following is a characteristic shared by all living things?", "o": ["Ability to fly", "Ability to respire", "Green colour", "Presence of a shell"], "a": 1, "e": "Respiration, the release of energy from food, is a fundamental characteristic shared by all living organisms."},
+  {"q": "The ability of living organisms to respond to changes in their environment is called", "o": ["Nutrition", "Irritability (sensitivity)", "Excretion", "Growth"], "a": 1, "e": "Irritability, or sensitivity, is the ability of an organism to detect and respond to stimuli in its environment."},
+  {"q": "The process by which living organisms produce new individuals of their own kind is called", "o": ["Nutrition", "Respiration", "Reproduction", "Excretion"], "a": 2, "e": "Reproduction is the biological process by which living organisms produce offspring, ensuring the continuation of their species."},
+  {"q": "The process by which living organisms increase in size and mass over time is called", "o": ["Growth", "Excretion", "Irritability", "Respiration"], "a": 0, "e": "Growth refers to the permanent increase in size and mass of a living organism, usually through cell division and enlargement."},
+  {"q": "The removal of metabolic waste products from the body of an organism is called", "o": ["Nutrition", "Excretion", "Reproduction", "Movement"], "a": 1, "e": "Excretion is the process by which organisms eliminate waste products of metabolism from their bodies."},
+  {"q": "The intake and use of food materials by living organisms for energy and growth is called", "o": ["Nutrition", "Excretion", "Irritability", "Respiration"], "a": 0, "e": "Nutrition refers to the process by which organisms obtain and utilize food for energy, growth, and repair."},
+  {"q": "The ability of an organism to change its position or location is called", "o": ["Growth", "Movement", "Excretion", "Nutrition"], "a": 1, "e": "Movement is the characteristic ability of living organisms to change position, either the whole body or parts of it."},
+  {"q": "The basic structural and functional unit of life is the", "o": ["Tissue", "Cell", "Organ", "Organism"], "a": 1, "e": "The cell is considered the basic structural and functional unit of all living organisms."},
+  {"q": "The branch of biology that deals with the study of cells is called", "o": ["Ecology", "Cytology", "Taxonomy", "Genetics"], "a": 1, "e": "Cytology is the branch of biology specifically concerned with the study of the structure and function of cells."},
+  {"q": "The structure that controls the entry and exit of substances into and out of a cell is the", "o": ["Nucleus", "Cell membrane", "Cell wall", "Mitochondrion"], "a": 1, "e": "The cell membrane (plasma membrane) is selectively permeable, regulating what substances enter and leave the cell."},
+  {"q": "The structure that contains the genetic material and controls the activities of the cell is the", "o": ["Cytoplasm", "Cell wall", "Nucleus", "Vacuole"], "a": 2, "e": "The nucleus houses the cell's genetic material (DNA) and directs the cell's activities, including growth and reproduction."},
+  {"q": "The jelly-like substance within a cell, where most cellular activities occur, is the", "o": ["Nucleus", "Cytoplasm", "Cell wall", "Chloroplast"], "a": 1, "e": "Cytoplasm is the jelly-like substance filling the cell, where organelles are suspended and many metabolic processes occur."},
+  {"q": "The organelle responsible for releasing energy through cellular respiration is the", "o": ["Nucleus", "Mitochondrion", "Ribosome", "Golgi body"], "a": 1, "e": "The mitochondrion is often called the 'powerhouse of the cell' because it generates most of the cell's energy through respiration."},
+  {"q": "The rigid outer structure found in plant cells, but absent in animal cells, is the", "o": ["Cell membrane", "Cell wall", "Nucleus", "Cytoplasm"], "a": 1, "e": "The cell wall is a rigid outer layer found in plant cells (made mainly of cellulose), providing structure and support; animal cells lack this structure."},
+  {"q": "The green pigment-containing organelle found in plant cells, responsible for photosynthesis, is the", "o": ["Mitochondrion", "Chloroplast", "Ribosome", "Nucleus"], "a": 1, "e": "The chloroplast contains chlorophyll and is the site of photosynthesis in plant cells."},
+  {"q": "A large, fluid-filled sac found in mature plant cells, used for storage, is the", "o": ["Vacuole", "Nucleus", "Ribosome", "Lysosome"], "a": 0, "e": "The vacuole, especially large and prominent in mature plant cells, stores water, nutrients, and waste products."},
+  {"q": "Which of the following structures is present in both plant and animal cells?", "o": ["Cell wall", "Chloroplast", "Nucleus", "Large permanent vacuole"], "a": 2, "e": "The nucleus is a structure common to both plant and animal cells, unlike the cell wall, chloroplast, and large permanent vacuole, which are typically found only in plant cells."},
+  {"q": "A group of similar cells performing a specific function together forms a", "o": ["Organ", "Tissue", "System", "Organism"], "a": 1, "e": "A tissue is a group of similar cells working together to perform a specific function, e.g. muscle tissue."},
+  {"q": "A group of different tissues working together to perform a specific function forms an", "o": ["Organelle", "Organ", "Cell", "Species"], "a": 1, "e": "An organ is formed from different tissues working together to carry out a particular function, e.g. the heart or a leaf."},
+  {"q": "A group of organs working together to carry out a major body function forms an organ", "o": ["Tissue", "Cell", "System", "Organelle"], "a": 2, "e": "An organ system is a group of organs working together to perform a major body function, e.g. the digestive system."},
+  {"q": "Arrange the following levels of biological organization from simplest to most complex: Cell, Tissue, Organ, Organ system.", "o": ["Organ system, Organ, Tissue, Cell", "Cell, Tissue, Organ, Organ system", "Tissue, Cell, Organ system, Organ", "Organ, Cell, Tissue, Organ system"], "a": 1, "e": "The correct hierarchy from simplest to most complex is: Cell → Tissue → Organ → Organ system."},
+],
+  govt:[
+  {"q": "Government is best defined as", "o": ["a group of citizens", "the machinery/institution through which a state exercises authority", "a political party", "a business organization"], "a": 1, "e": "Government refers to the institution or machinery through which the authority of a state is exercised over its people."},
+  {"q": "Which of the following is a basic element of a state?", "o": ["Political party", "Population", "Trade union", "Pressure group"], "a": 1, "e": "Population, along with territory, government, and sovereignty, is a fundamental element of a state."},
+  {"q": "Which of the following is NOT an essential element of a state?", "o": ["Territory", "Sovereignty", "Population", "A national football team"], "a": 3, "e": "A national football team is not an essential element of statehood; territory, sovereignty, population, and government are."},
+  {"q": "Sovereignty in political science refers to", "o": ["the physical land of a country", "the supreme and independent authority of a state", "the population of a country", "a country's flag and anthem"], "a": 1, "e": "Sovereignty is the supreme, independent power or authority of a state to govern itself without external control."},
+  {"q": "Internal sovereignty refers to a state's supreme authority", "o": ["over its own internal affairs and citizens", "to conduct relations with other states", "to declare war on other nations only", "to print its currency only"], "a": 0, "e": "Internal sovereignty is the state's supreme power and authority over matters within its own territory and citizens."},
+  {"q": "External sovereignty refers to a state's", "o": ["control over its citizens only", "independence and equality in relation to other states", "control over local governments", "judicial powers only"], "a": 1, "e": "External sovereignty refers to a state's independence and freedom from external control in its relations with other states."},
+  {"q": "A monarchy is a form of government where", "o": ["power is inherited by a king or queen", "leaders are elected by the people", "the military rules directly", "power is shared equally among citizens"], "a": 0, "e": "A monarchy is headed by a king, queen, or similar hereditary ruler who typically inherits the position."},
+  {"q": "A republic is a form of government in which", "o": ["a king rules by inheritance", "the head of state is usually elected, not inherited", "the military controls the state permanently", "there is no head of state at all"], "a": 1, "e": "In a republic, the head of state is typically elected rather than inheriting the position, unlike in a monarchy."},
+  {"q": "A form of government in which power is concentrated in a single central authority, with little power given to regions, is called a", "o": ["Federal system", "Unitary system", "Confederate system", "Theocratic system"], "a": 1, "e": "A unitary system of government concentrates political power at the centre, with regions having limited independent authority."},
+  {"q": "A form of government where power is constitutionally shared between a central government and component states/regions is called a", "o": ["Unitary system", "Federal system", "Monarchy", "Theocracy"], "a": 1, "e": "A federal system divides power constitutionally between a central (federal) government and regional (state) governments."},
+  {"q": "A form of government where political and legal authority is believed to be derived from religious law or divine guidance is called a", "o": ["Theocracy", "Democracy", "Aristocracy", "Oligarchy"], "a": 0, "e": "A theocracy is a system of government where religious leaders or laws hold ultimate authority, seen as divinely guided."},
+  {"q": "A form of government where power rests with a small, privileged group is called an", "o": ["Autocracy", "Oligarchy", "Democracy", "Anarchy"], "a": 1, "e": "An oligarchy is a system of government controlled by a small group of people, often based on wealth or status."},
+  {"q": "A form of government where absolute power is held by a single ruler, without constitutional limits, is called an", "o": ["Oligarchy", "Autocracy", "Democracy", "Federation"], "a": 1, "e": "An autocracy concentrates absolute, unchecked power in the hands of a single ruler."},
+  {"q": "Democracy is best described as a system of government where", "o": ["power belongs to a single ruler", "power ultimately belongs to and is exercised by the people", "only the military can rule", "power is inherited"], "a": 1, "e": "Democracy is a system in which political power ultimately rests with the people, exercised directly or through elected representatives."},
+  {"q": "The three arms/organs of government are the", "o": ["Executive, Legislature and Judiciary", "President, Senate and Police", "Army, Police and Civil Service", "Federal, State and Local"], "a": 0, "e": "Government is traditionally organized into three arms: the Executive, the Legislature, and the Judiciary."},
+  {"q": "The arm of government responsible for making laws is the", "o": ["Executive", "Legislature", "Judiciary", "Civil Service"], "a": 1, "e": "The Legislature is the law-making arm of government, e.g. Nigeria's National Assembly."},
+  {"q": "The arm of government responsible for implementing and enforcing laws is the", "o": ["Legislature", "Judiciary", "Executive", "Electoral Commission"], "a": 2, "e": "The Executive arm is responsible for implementing, administering, and enforcing the laws made by the legislature."},
+  {"q": "The arm of government responsible for interpreting laws and administering justice is the", "o": ["Executive", "Legislature", "Judiciary", "Local Government"], "a": 2, "e": "The Judiciary interprets laws, resolves disputes, and administers justice through the court system."},
+  {"q": "The doctrine which states that the three arms of government should be separate and independent of one another is called", "o": ["Rule of law", "Separation of powers", "Federalism", "Fundamental rights"], "a": 1, "e": "The separation of powers is a doctrine that divides governmental authority among the executive, legislature, and judiciary to prevent abuse of power."},
+  {"q": "A system of checks and balances exists mainly to", "o": ["give one arm of government total control", "prevent any single arm of government from becoming too powerful", "abolish the judiciary", "eliminate elections"], "a": 1, "e": "Checks and balances allow each arm of government to limit the powers of the others, preventing the abuse of authority."},
+  {"q": "The head of the Executive arm of government in a presidential system is the", "o": ["Chief Justice", "Speaker of the House", "President", "Senate President"], "a": 2, "e": "In a presidential system, the President heads the Executive arm of government."},
+  {"q": "The head of the Judiciary in Nigeria is the", "o": ["President", "Chief Justice of Nigeria", "Speaker of the House of Representatives", "Inspector General of Police"], "a": 1, "e": "The Chief Justice of Nigeria heads the Judiciary, the arm of government responsible for interpreting the law."},
+  {"q": "Which arm of government is primarily responsible for drafting and passing the national budget into law?", "o": ["Judiciary", "Legislature", "Civil Service", "Police"], "a": 1, "e": "The Legislature debates, amends, and passes the budget bill into law, working with the Executive that proposes it."},
+  {"q": "Which of the following best distinguishes a state from a nation?", "o": ["A state is a political/legal unit, while a nation is a group united by shared culture, language, or identity", "A state has no government, while a nation does", "A nation always has more than one government", "There is no difference between the two"], "a": 0, "e": "A state is a defined political and legal entity, while a nation refers to a group of people sharing common cultural, historical, or linguistic bonds."},
+  {"q": "Which of the following is a function of government?", "o": ["Maintaining law and order", "Manufacturing consumer products for profit", "Running private businesses exclusively", "Avoiding taxation"], "a": 0, "e": "Maintaining law and order, providing security, and delivering public services are core functions of government."},
+  {"q": "The territory of a state refers to", "o": ["its population size", "the defined geographical area over which it exercises authority", "its economic system", "its list of political parties"], "a": 1, "e": "Territory is the clearly defined geographical area within which a state exercises its authority and jurisdiction."},
+],
+  geo:[
+  {"q": "A map is best defined as a", "o": ["photograph of the Earth's surface taken from space", "scaled-down representation of part or all of the Earth's surface on a flat plane", "three-dimensional model of a landform", "list of place names only"], "a": 1, "e": "A map is a scaled-down, symbolic representation of the Earth's surface (or part of it) drawn on a flat plane."},
+  {"q": "The ratio between a distance on a map and the corresponding actual distance on the ground is called the", "o": ["Legend", "Scale", "Grid reference", "Contour interval"], "a": 1, "e": "Scale expresses the relationship between distance on a map and the corresponding real distance on the ground."},
+  {"q": "A scale expressed as a ratio, such as 1:50,000, is known as a", "o": ["Statement scale", "Representative Fraction (RF) scale", "Linear scale", "Vertical scale"], "a": 1, "e": "A Representative Fraction (RF) scale expresses the map-to-ground ratio as a fraction or ratio, such as 1:50,000."},
+  {"q": "A scale expressed in words, such as '1 centimetre represents 1 kilometre', is called a", "o": ["Representative Fraction scale", "Statement scale", "Linear (graphical) scale", "Vertical scale"], "a": 1, "e": "A statement scale describes the map-to-ground relationship in words, such as '1 cm represents 1 km'."},
+  {"q": "A scale represented as a line divided into units to allow direct measurement on a map is called a", "o": ["Statement scale", "Representative Fraction scale", "Linear (graphical) scale", "Contour scale"], "a": 2, "e": "A linear (graphical) scale is a drawn line marked with units, allowing distances to be measured directly from the map."},
+  {"q": "On a map with a scale of 1:50,000, a distance of 4 cm on the map represents an actual ground distance of", "o": ["200 m", "2 km", "20 km", "200 km"], "a": 1, "e": "1 cm represents 50,000 cm (0.5 km). So 4 cm represents 4 × 0.5 km = 2 km."},
+  {"q": "The key on a map that explains the meaning of symbols and colours used is called the", "o": ["Scale", "Legend (key)", "Grid reference", "Northline"], "a": 1, "e": "The legend (key) explains what the various symbols, colours, and signs on a map represent."},
+  {"q": "Lines on a map that connect points of equal elevation above sea level are called", "o": ["Grid lines", "Contour lines", "Meridians", "Isotherms"], "a": 1, "e": "Contour lines connect points of equal elevation, used to represent the shape and height of land on a topographical map."},
+  {"q": "Contour lines that are close together on a map generally indicate", "o": ["a gentle, flat slope", "a steep slope", "a river", "a lake"], "a": 1, "e": "Closely spaced contour lines indicate a steep slope, since elevation changes rapidly over a short horizontal distance."},
+  {"q": "A method used to describe the exact location of a point on a map using numbered vertical and horizontal lines is called a", "o": ["Contour interval", "Grid reference", "Legend", "Bearing"], "a": 1, "e": "A grid reference uses the numbered grid lines (eastings and northings) on a map to precisely locate a specific point."},
+  {"q": "The direction indicator on a map, usually an arrow pointing towards true or magnetic north, is called the", "o": ["Legend", "North arrow (northline)", "Scale bar", "Grid line"], "a": 1, "e": "The north arrow (northline) shows the direction of north on a map, helping users orient the map correctly."},
+  {"q": "The measurement of the direction of one point from another, expressed in degrees from north, is called", "o": ["Scale", "Bearing", "Contour interval", "Grid reference"], "a": 1, "e": "Bearing is the angular direction of one location from another, measured clockwise from north in degrees (0°-360°)."},
+  {"q": "Statistical data on a map or report can be effectively presented using diagrams such as", "o": ["bar charts, pie charts, and line graphs", "only handwritten notes", "only photographs", "legends alone"], "a": 0, "e": "Bar charts, pie charts, and line graphs are common diagrammatic methods used to present and interpret statistical (numerical) data."},
+  {"q": "A pie chart is particularly useful for showing", "o": ["changes over time only", "the proportion of different categories that make up a whole", "exact numerical values only", "elevation changes on land"], "a": 1, "e": "A pie chart visually represents how a whole is divided into proportional parts or categories, shown as slices of a circle."},
+  {"q": "A line graph is particularly useful for showing", "o": ["proportions of a whole", "trends or changes in data over a period of time", "the location of towns", "the elevation of mountains"], "a": 1, "e": "A line graph effectively displays trends and changes in data over a continuous period, such as rainfall over months."},
+  {"q": "Elementary surveying in geography involves", "o": ["measuring and mapping land features and distances using instruments", "only reading printed maps", "weather forecasting", "population counting only"], "a": 0, "e": "Surveying involves measuring and recording land features, distances, and elevations using tools like tapes, compasses, and levels, to create accurate maps."},
+  {"q": "A simple instrument used in basic surveying to measure horizontal angles and directions is the", "o": ["Barometer", "Prismatic compass", "Thermometer", "Rain gauge"], "a": 1, "e": "A prismatic compass is commonly used in elementary surveying to measure bearings and horizontal directions in the field."},
+  {"q": "A Geographic Information System (GIS) is best described as a", "o": ["type of paper map only", "computer-based system for capturing, storing, analysing, and displaying geographically referenced data", "weather forecasting tool only", "farming technique"], "a": 1, "e": "GIS is a computer-based system used to capture, store, manage, analyse, and visually display data linked to specific geographic locations."},
+  {"q": "One key advantage of using GIS over traditional paper maps is that GIS allows users to", "o": ["only view static, unchangeable images", "layer, update, and analyse multiple types of spatial data digitally", "avoid using any coordinates", "eliminate the need for scale"], "a": 1, "e": "GIS allows users to combine, update, and analyse multiple layers of spatial data digitally, offering flexibility beyond static paper maps."},
+  {"q": "Which of the following is a practical application of GIS?", "o": ["Urban planning and disaster management", "Cooking recipes", "Music composition", "Sports commentary"], "a": 0, "e": "GIS is widely applied in fields like urban planning, disaster management, environmental monitoring, and resource management."},
+],
+  agric:[
+  {"q": "Agriculture is best defined as", "o": ["the study of animals only", "the science and practice of cultivating crops and rearing animals for human use", "the study of rocks and minerals", "the buying and selling of farm produce only"], "a": 1, "e": "Agriculture is the science and practice of cultivating land, growing crops, and rearing animals for food and other human needs."},
+  {"q": "The scope of agriculture includes which of the following branches?", "o": ["Crop production and animal production only", "Crop production, animal production, forestry, and fisheries", "Only forestry", "Only crop production"], "a": 1, "e": "Agriculture's scope is broad, covering crop production, animal husbandry, forestry, and fisheries, among other areas."},
+  {"q": "Agriculture is important to the economy mainly because it", "o": ["provides food, raw materials, employment, and income", "has no relevance to national development", "only benefits farmers directly involved", "reduces a country's export earnings"], "a": 0, "e": "Agriculture is vital to national economies as it provides food, raw materials for industry, employment, and income/export earnings."},
+  {"q": "Which of the following best describes the importance of agriculture in providing raw materials?", "o": ["Cotton for the textile industry", "Only fuel for vehicles", "Only building materials for construction", "Only electronics manufacturing"], "a": 0, "e": "Agriculture supplies raw materials, such as cotton for textiles, rubber for tyres, and cocoa for confectionery, to various industries."},
+  {"q": "Agricultural ecology is the study of", "o": ["farm accounting practices", "the relationship between farm organisms (crops, animals) and their environment", "the marketing of agricultural produce", "farm machinery repair"], "a": 1, "e": "Agricultural ecology studies the interactions between crops, farm animals, and their surrounding environment."},
+  {"q": "An ecosystem in agriculture, such as a farmland, consists of", "o": ["only living organisms", "only non-living components like soil and climate", "both living organisms and non-living environmental factors interacting together", "only farm buildings"], "a": 2, "e": "An agricultural ecosystem includes both living components (crops, animals, pests) and non-living factors (soil, climate, water) interacting together."},
+  {"q": "Which of the following is an abiotic (non-living) factor affecting agricultural ecology?", "o": ["Soil type", "Weeds", "Farm animals", "Pests"], "a": 0, "e": "Soil type is a non-living (abiotic) environmental factor that significantly influences crop growth and agricultural productivity."},
+  {"q": "Genetics in agriculture is the study of how", "o": ["farm records are kept", "hereditary traits are passed from parent crops/animals to their offspring", "land is prepared for farming", "farm produce is marketed"], "a": 1, "e": "Genetics in agriculture studies how hereditary characteristics are transmitted from parent crops or animals to their offspring, useful for breeding improved varieties."},
+  {"q": "Selective breeding in agriculture is used mainly to", "o": ["reduce crop yield", "improve desirable traits such as yield, disease resistance, and growth rate in plants or animals", "eliminate all variation in a species", "increase pest attacks"], "a": 1, "e": "Selective breeding involves choosing parent plants or animals with desirable traits to produce improved offspring, such as higher yield or disease resistance."},
+  {"q": "A characteristic passed from parents to offspring through genes is called a", "o": ["Mutation", "Hereditary (inherited) trait", "Environmental trait only", "Acquired trait"], "a": 1, "e": "A hereditary trait is a characteristic passed from parents to their offspring through genetic material (genes)."},
+  {"q": "Farm inputs refer to", "o": ["the finished products sold by a farmer", "the resources used by a farmer to produce agricultural output, such as seeds, fertilizer, and labour", "only the farmer's personal income", "only farm buildings"], "a": 1, "e": "Farm inputs are the resources — such as seeds, fertilizers, labour, and machinery — used by a farmer in the production process."},
+  {"q": "Which of the following is an example of a farm input?", "o": ["Harvested maize", "Fertilizer", "Farm profit", "Market price"], "a": 1, "e": "Fertilizer is a farm input used to improve soil fertility and boost crop production, unlike harvested maize which is an output."},
+  {"q": "Improved seed varieties, as a farm input, are important mainly because they can", "o": ["reduce crop yield significantly", "offer higher yield, disease resistance, or faster maturity compared to local varieties", "increase the cost of farming with no benefit", "eliminate the need for water"], "a": 1, "e": "Improved seed varieties are developed to offer benefits such as higher yield, disease resistance, or shorter maturity periods, boosting farm productivity."},
+  {"q": "Labour, as a farm input, refers to", "o": ["the physical and mental effort applied by people to farm production", "only machinery used on the farm", "the land used for farming", "the money invested in farming"], "a": 0, "e": "Labour refers to the human effort — physical and mental — applied to carry out farm operations and production activities."},
+  {"q": "Historically, early agricultural development in West Africa was based mainly on", "o": ["fully mechanized industrial farming", "traditional methods such as shifting cultivation and the use of simple hand tools", "genetically modified crops exclusively", "large-scale greenhouse farming"], "a": 1, "e": "Early West African agriculture relied on traditional methods, including shifting cultivation and simple hand tools like the hoe and cutlass."},
+  {"q": "Shifting cultivation, as practiced historically, involves", "o": ["farming the same piece of land continuously without rest", "cultivating a piece of land for a period, then abandoning it to fallow while farming another plot", "using only chemical fertilizers", "permanent settlement with modern irrigation"], "a": 1, "e": "Shifting cultivation involves farming a plot of land for some years, then leaving it fallow to regain fertility while moving to cultivate a new plot."},
+  {"q": "The introduction of new crops (such as cassava and maize) to West Africa historically came mainly through", "o": ["local domestication of all crops only", "contact and trade with other regions, especially through early European exploration", "government research alone", "the Trans-Saharan trade route only"], "a": 1, "e": "Crops such as cassava and maize were introduced into West African agriculture historically through trade and contact linked to early European exploration."},
+  {"q": "The development of agriculture over time, from traditional to modern practices, has been influenced mainly by", "o": ["advances in science, technology, and improved farm inputs", "a decrease in the world's population", "the disappearance of all farmland", "complete abandonment of traditional knowledge"], "a": 0, "e": "Agricultural development has progressed through advances in science and technology, improved farm inputs, and modern techniques that boost productivity."},
+  {"q": "Modern agricultural development, compared to traditional practices, is characterized mainly by", "o": ["greater use of mechanization, improved inputs, and scientific methods", "complete reliance on manual labour only", "abandonment of all farm inputs", "reduced crop and animal productivity"], "a": 0, "e": "Modern agriculture is marked by increased mechanization, use of improved seeds/fertilizers, and application of scientific knowledge to boost productivity."},
+],
+  english:[
+  {"q": "A word that names a person, place, thing, or idea is called a", "o": ["verb", "noun", "adverb", "preposition"], "a": 1, "e": "A noun is a word used to name a person, place, thing, or idea."},
+  {"q": "A word that describes or modifies a noun is called a(n)", "o": ["adjective", "verb", "conjunction", "interjection"], "a": 0, "e": "An adjective describes or gives more information about a noun."},
+  {"q": "A word that shows action or a state of being is called a", "o": ["noun", "verb", "preposition", "adjective"], "a": 1, "e": "A verb expresses an action (run, eat) or a state of being (is, seem)."},
+  {"q": "A word used in place of a noun is called a", "o": ["pronoun", "adverb", "conjunction", "preposition"], "a": 0, "e": "A pronoun (he, she, it, they) replaces a noun to avoid repetition."},
+  {"q": "A word that modifies a verb, adjective, or another adverb is called a(n)", "o": ["noun", "adverb", "preposition", "conjunction"], "a": 1, "e": "An adverb often describes how, when, or where an action happens, e.g. 'quickly', 'yesterday'."},
+  {"q": "A word that shows the relationship between a noun/pronoun and other words in a sentence is called a", "o": ["preposition", "interjection", "conjunction", "verb"], "a": 0, "e": "A preposition (in, on, under, before) shows the relationship of a noun or pronoun to another word in the sentence."},
+  {"q": "A word that joins words, phrases, or clauses is called a", "o": ["pronoun", "conjunction", "adjective", "interjection"], "a": 1, "e": "A conjunction (and, but, or, because) connects words, phrases, or clauses."},
+  {"q": "A word that expresses sudden emotion, usually followed by an exclamation mark, is called a(n)", "o": ["interjection", "preposition", "noun", "verb"], "a": 0, "e": "An interjection (Wow! Oh! Alas!) expresses sudden feeling or emotion."},
+  {"q": "Which tense is used to describe an action happening right now?", "o": ["Past tense", "Present tense", "Future tense", "Past perfect tense"], "a": 1, "e": "The present tense is used for actions happening now or habitually, e.g. 'She writes every day.'"},
+  {"q": "Which tense describes an action that has already been completed?", "o": ["Present tense", "Future tense", "Past tense", "Present continuous tense"], "a": 2, "e": "The past tense describes an action that has already happened, e.g. 'She wrote a letter.'"},
+  {"q": "Which tense describes an action that will happen later?", "o": ["Past tense", "Present tense", "Future tense", "Past continuous tense"], "a": 2, "e": "The future tense describes an action that has not yet happened but will, e.g. 'She will write a letter.'"},
+  {"q": "Choose the correct present continuous form: She ______ to school now.", "o": ["go", "goes", "is going", "went"], "a": 2, "e": "Present continuous is formed with 'is/am/are + verb-ing': 'is going' describes an action happening right now."},
+  {"q": "Choose the correct past tense of 'go'.", "o": ["goed", "went", "gone", "going"], "a": 1, "e": "'Go' is an irregular verb; its simple past tense form is 'went'."},
+  {"q": "Choose the sentence in the future tense.", "o": ["He plays football every day.", "He played football yesterday.", "He will play football tomorrow.", "He is playing football now."], "a": 2, "e": "'Will play' indicates an action that has not yet happened — the future tense."},
+  {"q": "Concord (subject-verb agreement) requires that a singular subject takes a", "o": ["plural verb", "singular verb", "past tense verb only", "modal verb only"], "a": 1, "e": "Concord requires that a singular subject agrees with a singular verb form, e.g. 'He walks', not 'He walk'."},
+  {"q": "Choose the correct option. The group of students ______ studying hard.", "o": ["is", "are", "were", "have"], "a": 0, "e": "Collective nouns like 'group' are usually treated as singular, taking a singular verb: 'is studying'."},
+  {"q": "Choose the correct option. Each of the boys ______ a book.", "o": ["have", "has", "having", "were having"], "a": 1, "e": "'Each' is singular, so it takes a singular verb: 'has'."},
+  {"q": "Choose the correct option. Neither the teacher nor the students ______ present.", "o": ["is", "was", "are", "has"], "a": 2, "e": "With 'neither...nor', the verb agrees with the noun nearer to it — 'students' is plural, so 'are' is correct."},
+  {"q": "Choose the correct option. The news ______ shocking.", "o": ["is", "are", "were", "have been"], "a": 0, "e": "'News' is an uncountable noun that is always treated as singular, taking 'is'."},
+  {"q": "Choose the correct option. My brother, along with his friends, ______ coming today.", "o": ["is", "are", "were", "have"], "a": 0, "e": "When a phrase like 'along with...' comes between the subject and verb, the verb agrees with the main subject ('brother' — singular): 'is'."},
+  {"q": "A sentence with only one independent clause and no dependent clause is called a", "o": ["Compound sentence", "Simple sentence", "Complex sentence", "Compound-complex sentence"], "a": 1, "e": "A simple sentence contains a single independent clause with a subject and a verb, expressing one complete thought."},
+  {"q": "A sentence made up of two or more independent clauses joined by a coordinating conjunction is called a", "o": ["Simple sentence", "Complex sentence", "Compound sentence", "Fragment"], "a": 2, "e": "A compound sentence joins two or more independent clauses using conjunctions like 'and', 'but', or 'or'."},
+  {"q": "A sentence with one independent clause and at least one dependent clause is called a", "o": ["Simple sentence", "Compound sentence", "Complex sentence", "Run-on sentence"], "a": 2, "e": "A complex sentence combines an independent clause with one or more dependent (subordinate) clauses."},
+  {"q": "Identify the simple sentence.", "o": ["The rain fell, and the streets flooded.", "The rain fell.", "Because it rained, the streets flooded.", "The rain fell; the streets flooded."], "a": 1, "e": "'The rain fell' is a single independent clause with no additional clauses — a simple sentence."},
+  {"q": "Which sentence pattern below is Subject-Verb-Object (SVO)?", "o": ["She sings.", "She is happy.", "She ate the food.", "Run quickly!"], "a": 2, "e": "'She ate the food' follows the Subject (She) - Verb (ate) - Object (the food) pattern."},
+  {"q": "Which of these is a Subject-Verb-Complement (SVC) sentence?", "o": ["He kicked the ball.", "He is a doctor.", "He runs fast.", "He gave her a gift."], "a": 1, "e": "'He is a doctor' follows Subject-Verb-Complement, where the complement (doctor) describes the subject."},
+  {"q": "In the sentence 'The boy gave his mother flowers', which grammatical pattern is used?", "o": ["Subject-Verb", "Subject-Verb-Object", "Subject-Verb-Indirect Object-Direct Object", "Subject-Verb-Complement"], "a": 2, "e": "'Gave his mother flowers' follows Subject-Verb-Indirect Object (mother)-Direct Object (flowers)."},
+  {"q": "Choose the correctly formed plural noun.", "o": ["Childs", "Children", "Childes", "Childrens"], "a": 1, "e": "The plural of 'child' is irregular: 'children', not 'childs'."},
+  {"q": "Choose the correct possessive form. The books belonging to the boys.", "o": ["The boys book", "The boy's books", "The boys' books", "The boy books"], "a": 2, "e": "For a plural noun already ending in 's' (boys), the possessive apostrophe is placed after the 's': 'boys' books'."},
+  {"q": "Which word functions as an auxiliary (helping) verb in: 'She has finished her homework'?", "o": ["She", "has", "finished", "homework"], "a": 1, "e": "'Has' is an auxiliary verb helping to form the present perfect tense with the main verb 'finished'."},
+],
+  crs:[
+  {"q": "The Bible opens with the account of God creating the heavens and the earth in the book of", "o": ["Exodus", "Genesis", "Leviticus", "Numbers"], "a": 1, "e": "The book of Genesis begins with the account of God's creation of the heavens and the earth."},
+  {"q": "According to Genesis, God created the world in how many days, resting on the seventh?", "o": ["Five days", "Six days", "Seven days", "Eight days"], "a": 1, "e": "Genesis 1 records that God created the world in six days and rested on the seventh."},
+  {"q": "On which day did God create man, according to the creation account?", "o": ["Third day", "Fourth day", "Fifth day", "Sixth day"], "a": 3, "e": "Genesis 1:26-27 records that God created man on the sixth day, in His own image."},
+  {"q": "According to Genesis, man was formed by God from", "o": ["water", "dust of the ground", "a rib only", "fire"], "a": 1, "e": "Genesis 2:7 records that God formed man from the dust of the ground and breathed life into him."},
+  {"q": "Eve was created by God from", "o": ["dust of the ground", "a rib taken from Adam", "clay", "water"], "a": 1, "e": "Genesis 2:21-22 records that God formed Eve from a rib taken from Adam."},
+  {"q": "The sovereignty of God refers to His", "o": ["limited power over only some things", "supreme power and absolute authority over all creation", "dependence on human approval", "physical location in the sky"], "a": 1, "e": "God's sovereignty refers to His supreme, unlimited power and authority over the entire universe and all creation."},
+  {"q": "The belief that God has complete control and rule over everything that happens demonstrates His", "o": ["weakness", "sovereignty", "forgetfulness", "mortality"], "a": 1, "e": "God's control and rule over all things, including nature and human history, is an expression of His sovereignty."},
+  {"q": "The Garden where Adam and Eve lived after creation was called the Garden of", "o": ["Gethsemane", "Eden", "Canaan", "Sinai"], "a": 1, "e": "Genesis 2 records that Adam and Eve were placed in the Garden of Eden after their creation."},
+  {"q": "Adam and Eve disobeyed God by eating fruit from", "o": ["the tree of life", "the tree of the knowledge of good and evil", "a fig tree", "any tree in the garden"], "a": 1, "e": "Genesis 3 records that Adam and Eve disobeyed God's command by eating fruit from the tree of the knowledge of good and evil."},
+  {"q": "The consequence of Adam and Eve's disobedience was that they were", "o": ["given more blessings", "driven out of the Garden of Eden", "made immortal", "rewarded with riches"], "a": 1, "e": "Genesis 3 records that as a consequence of their disobedience, Adam and Eve were driven out of the Garden of Eden."},
+  {"q": "A covenant, in biblical terms, is best described as", "o": ["a casual conversation", "a solemn agreement or promise between God and His people", "a type of sacrifice only", "a Jewish festival"], "a": 1, "e": "A covenant is a solemn, binding agreement between God and His people, often involving promises and obligations on both sides."},
+  {"q": "God's covenant with Noah after the flood included the promise that", "o": ["He would never again destroy the earth by flood", "humans would live forever", "there would be no more seasons", "animals would no longer exist"], "a": 0, "e": "Genesis 9 records God's covenant with Noah, promising never again to destroy the earth by a flood."},
+  {"q": "The sign of God's covenant with Noah was the", "o": ["burning bush", "rainbow", "ark of the covenant", "tablets of stone"], "a": 1, "e": "Genesis 9:13 records that God set the rainbow in the clouds as the sign of His covenant with Noah."},
+  {"q": "God's covenant with Abraham included the promise that", "o": ["Abraham would remain childless", "Abraham's descendants would become a great nation", "Abraham would never leave his homeland", "Abraham would rule over Egypt"], "a": 1, "e": "Genesis 12 and 15 record God's covenant with Abraham, promising to make his descendants into a great nation."},
+  {"q": "The sign of God's covenant with Abraham was", "o": ["circumcision", "baptism", "the rainbow", "the Passover"], "a": 0, "e": "Genesis 17 records circumcision as the sign of the covenant between God and Abraham and his descendants."},
+  {"q": "God's guidance of His people is often demonstrated in the Bible through", "o": ["random events with no divine involvement", "direct instructions, dreams, prophets, and providential care", "human government alone", "natural disasters only"], "a": 1, "e": "Throughout the Bible, God guides His people through direct instructions, dreams, prophets, and providential intervention."},
+  {"q": "God guided the Israelites through the wilderness by day and by night respectively with a", "o": ["burning bush and an angel", "pillar of cloud and a pillar of fire", "rainbow and a star", "tablet of stone and an ark"], "a": 1, "e": "Exodus 13:21 records God guiding the Israelites with a pillar of cloud by day and a pillar of fire by night."},
+  {"q": "The belief that God actively cares for and sustains His creation is known as", "o": ["God's providence", "God's judgment only", "God's silence", "God's absence"], "a": 0, "e": "Divine providence refers to God's continuous care, guidance, and sustenance of His creation."},
+  {"q": "According to the creation account, after each stage of creation, God observed that it was", "o": ["evil", "good", "incomplete", "meaningless"], "a": 1, "e": "Genesis 1 repeatedly records that after each act of creation, God saw that it was good."},
+  {"q": "The seventh day, on which God rested from His work of creation, became the basis for", "o": ["the festival of Passover", "the Sabbath", "the covenant with Noah", "the exodus from Egypt"], "a": 1, "e": "God's rest on the seventh day of creation forms the biblical basis for the Sabbath, a day of rest and worship."},
+],
+  lit:[
+  {"q": "Literature is best defined as", "o": ["any written or spoken material with no artistic value", "imaginative or artistic writing that expresses human experience", "only textbooks used in school", "technical manuals and reports"], "a": 1, "e": "Literature is imaginative and artistic writing (or oral art) that expresses human thoughts, feelings, and experiences."},
+  {"q": "The three major genres of literature are", "o": ["Prose, Drama and Poetry", "Fiction, Non-fiction and Biography", "Novels, Essays and Letters", "Comedy, Tragedy and Satire"], "a": 0, "e": "Literature is broadly classified into three genres: Prose, Drama, and Poetry."},
+  {"q": "One of the main functions of literature is to", "o": ["provide only entertainment with no other value", "entertain, educate, and reflect on human society and experience", "replace scientific textbooks", "serve only religious purposes"], "a": 1, "e": "Literature functions to entertain, educate, and offer insight into human nature and society, among other purposes."},
+  {"q": "Literature that mirrors and comments on the values, problems, or events of society is said to perform which function?", "o": ["Aesthetic function only", "Social/reflective function", "No function at all", "Purely commercial function"], "a": 1, "e": "Literature often reflects society, commenting on its values, conflicts, and experiences — this is its social/reflective function."},
+  {"q": "Oral literature refers to literary works that are", "o": ["always written down first", "passed down and performed by word of mouth", "only found in modern novels", "exclusively religious texts"], "a": 1, "e": "Oral literature consists of stories, songs, proverbs, and traditions passed down and performed by word of mouth, especially in traditional societies."},
+  {"q": "Written literature differs from oral literature mainly because it is", "o": ["performed live only", "recorded in a fixed written form", "always anonymous", "never studied in schools"], "a": 1, "e": "Written literature is recorded in a fixed textual form, unlike oral literature which is transmitted by speech and performance."},
+  {"q": "The imaginative and fictional prose narrative, usually of considerable length, is called a", "o": ["Poem", "Novel", "Essay", "Biography"], "a": 1, "e": "A novel is a long, imaginative work of prose fiction that develops characters and plot in depth."},
+  {"q": "Prose literature is characterized mainly by", "o": ["ordinary language organized in sentences and paragraphs, without a fixed metrical pattern", "strict rhyme and meter", "dialogue performed on a stage", "short, rhythmic verse only"], "a": 0, "e": "Prose is written in ordinary language, arranged in sentences and paragraphs, without the fixed meter or rhyme scheme found in poetry."},
+  {"q": "Drama is a literary genre distinguished mainly by its", "o": ["use of narration only", "composition for performance, involving dialogue and action on a stage", "being written only in verse", "lack of characters"], "a": 1, "e": "Drama is written to be performed, using dialogue and action carried out by characters, typically on a stage."},
+  {"q": "Poetry as a literary genre is distinguished mainly by its", "o": ["use of ordinary prose sentences", "imaginative, rhythmic, and often figurative use of language", "complete absence of emotion", "exclusive use for religious purposes"], "a": 1, "e": "Poetry uses condensed, rhythmic, and often figurative language to express ideas and emotions imaginatively."},
+  {"q": "The term 'plot' in literature refers to", "o": ["the setting of a story", "the sequence of events and their cause-and-effect relationship in a story", "a character's personality", "the author's biography"], "a": 1, "e": "Plot is the structured sequence of events in a narrative, usually connected by cause and effect."},
+  {"q": "The term 'theme' in literature refers to", "o": ["the physical location of a story", "the central idea or underlying message of a literary work", "the author's name", "the length of a book"], "a": 1, "e": "Theme is the central idea, message, or insight about life that a literary work conveys."},
+  {"q": "'Setting' in a literary work refers to", "o": ["the main idea of the story", "the time and place in which the events of a story occur", "the list of characters", "the writer's personal opinion"], "a": 1, "e": "Setting refers to the time period and location in which the events of a literary work take place."},
+  {"q": "'Characterization' refers to the process by which an author", "o": ["chooses a title for the work", "creates and develops the personalities of characters in a story", "selects a genre", "designs the book cover"], "a": 1, "e": "Characterization is the technique a writer uses to create, reveal, and develop the personalities of characters."},
+  {"q": "'Diction' in literary appreciation refers to a writer's", "o": ["choice and use of words", "choice of setting", "use of chapters", "choice of characters only"], "a": 0, "e": "Diction refers to an author's choice and use of words, which shapes tone, style, and meaning in a literary work."},
+  {"q": "The 'protagonist' of a story is", "o": ["a minor character", "the main character around whom the story revolves", "the author of the work", "the setting of the story"], "a": 1, "e": "The protagonist is the central or main character in a literary work, around whom the plot mainly develops."},
+  {"q": "The 'antagonist' of a story is", "o": ["the character who supports the protagonist", "the character or force that opposes the protagonist", "the narrator", "the setting"], "a": 1, "e": "The antagonist is the character or force that creates conflict by opposing the protagonist."},
+  {"q": "'Conflict' in literature refers to", "o": ["a struggle between opposing forces, either internal or external", "the setting of a story", "the biography of an author", "the physical size of a book"], "a": 0, "e": "Conflict is the central struggle in a narrative, which can be internal (within a character) or external (between characters or forces)."},
+  {"q": "An internal conflict is a struggle that occurs", "o": ["between two characters", "within a character's own mind", "between a character and nature", "between two nations"], "a": 1, "e": "Internal conflict occurs within a character's mind, such as a struggle between duty and desire."},
+  {"q": "An external conflict is a struggle between", "o": ["a character and their own thoughts only", "a character and an outside force (another character, society, or nature)", "two ideas within one mind", "the author and the reader"], "a": 1, "e": "External conflict occurs between a character and an outside force, such as another character, society, or the environment."},
+  {"q": "Literary appreciation is best described as", "o": ["memorizing a text word for word", "the critical study and analysis of a literary work's meaning, style, and value", "summarizing a text briefly", "translating a text into another language"], "a": 1, "e": "Literary appreciation involves critically analysing and evaluating a text's content, style, structure, and meaning."},
+  {"q": "'Tone' in a literary work refers to", "o": ["the writer's attitude toward the subject or audience", "the physical setting of the story", "the number of characters", "the book's price"], "a": 0, "e": "Tone reflects the author's attitude toward the subject matter or audience, conveyed through word choice and style."},
+  {"q": "'Mood' in a literary work refers to", "o": ["the writer's biography", "the emotional atmosphere experienced by the reader", "the number of chapters", "the title of the work"], "a": 1, "e": "Mood is the emotional atmosphere a reader feels while engaging with a literary work."},
+  {"q": "A 'narrator' in a literary work is", "o": ["the person who tells the story", "always the author themselves", "a minor character only", "the publisher of the book"], "a": 0, "e": "A narrator is the voice that tells or relates the events of a story to the reader."},
+  {"q": "The relevance of studying literature includes developing", "o": ["only technical writing skills", "critical thinking, empathy, and appreciation of language and culture", "mathematical computation skills", "only memorization skills"], "a": 1, "e": "Studying literature helps develop critical thinking, empathy, cultural awareness, and appreciation for the artistic use of language."},
+],
+  history:[
+  {"q": "The pre-colonial area now known as Nigeria was home to a diverse mix of", "o": ["a single ethnic group only", "numerous ethnic groups, languages, and cultures", "only migrant Europeans", "a uniform political system throughout"], "a": 1, "e": "Before colonial rule, the area now called Nigeria consisted of numerous distinct ethnic groups, languages, and cultures."},
+  {"q": "Which of the following is considered one of the earliest known civilizations in the Nigerian area?", "o": ["The Nok civilization", "The Roman civilization", "The Greek civilization", "The Aztec civilization"], "a": 0, "e": "The Nok civilization, known for its terracotta sculptures and early iron use, is one of the earliest known civilizations in the Nigerian area."},
+  {"q": "The Nok civilization is particularly noted in history for its", "o": ["large naval fleet", "terracotta sculptures and early ironworking skills", "written legal codes", "gold currency system"], "a": 1, "e": "The Nok culture is renowned for its distinctive terracotta sculptures and early evidence of ironworking technology."},
+  {"q": "Early centres of civilization in the Nigerian area developed largely around", "o": ["areas with fertile land, rivers, and trade routes", "only coastal desert regions", "areas with no water sources", "regions isolated from all trade"], "a": 0, "e": "Early settlements and civilizations typically grew around fertile land, rivers, and locations favourable for trade and agriculture."},
+  {"q": "The formation of early states in the pre-colonial Nigerian area was often influenced by", "o": ["migration, trade, warfare, and the need for defence", "modern telecommunications", "international treaties", "industrial manufacturing"], "a": 0, "e": "Early states formed due to factors like migration, trade opportunities, warfare, and the need for collective defence."},
+  {"q": "The Kanem-Bornu Empire, one of the earliest and longest-lasting states in the region, was centred around", "o": ["Lake Chad", "the Niger Delta", "the Atlantic coastline", "the Jos Plateau"], "a": 0, "e": "The Kanem-Bornu Empire developed and thrived in the area around Lake Chad in what is now north-eastern Nigeria."},
+  {"q": "The Hausa states developed primarily in which part of the Nigerian area?", "o": ["South-west", "South-east", "Niger Delta", "Northern region"], "a": 3, "e": "The Hausa states, including Kano and Katsina, developed as a cluster of city-states in the northern part of the Nigerian area."},
+  {"q": "The Oyo Empire was a powerful pre-colonial state established mainly by which ethnic group?", "o": ["Igbo", "Yoruba", "Hausa", "Fulani"], "a": 1, "e": "The Oyo Empire was a major Yoruba kingdom, becoming one of the most powerful states in pre-colonial West Africa."},
+  {"q": "The Benin Kingdom, known for its bronze and ivory art, was established mainly by the", "o": ["Edo people", "Fulani people", "Kanuri people", "Nupe people"], "a": 0, "e": "The Benin Kingdom, famous for its bronze castings and centralized monarchy, was founded and developed by the Edo people."},
+  {"q": "Unlike centralized kingdoms, many Igbo communities in the pre-colonial period were organized mainly through", "o": ["a single powerful king ruling all Igbo communities", "decentralized systems based on village councils and lineage groups", "a hereditary emperor", "foreign colonial administrators"], "a": 1, "e": "Many Igbo communities practiced decentralized governance, organized through village councils, age grades, and lineage systems rather than a single central king."},
+  {"q": "The main economic activities of pre-colonial communities in the Nigerian area included", "o": ["farming, fishing, hunting, and craft production", "only oil drilling", "stock market trading", "industrial manufacturing"], "a": 0, "e": "Pre-colonial economies were based mainly on farming, fishing, hunting, gathering, and craft production like weaving and blacksmithing."},
+  {"q": "Trans-Saharan trade routes connected the Nigerian area mainly with", "o": ["North Africa and the Mediterranean world", "South America", "Western Europe directly", "East Asia"], "a": 0, "e": "Trans-Saharan trade routes linked northern Nigerian states, like Kanem-Bornu and the Hausa states, with North Africa and the Mediterranean."},
+  {"q": "Goods commonly exchanged along the Trans-Saharan trade routes included", "o": ["salt, gold, and slaves", "modern electronics", "petroleum", "printed books"], "a": 0, "e": "Trans-Saharan trade typically involved the exchange of goods such as salt, gold, cloth, and, unfortunately, enslaved people."},
+  {"q": "Craft specialization in pre-colonial communities included occupations such as", "o": ["blacksmithing, weaving, and pottery-making", "software engineering", "stock brokering", "air transportation"], "a": 0, "e": "Pre-colonial economies featured specialized craft occupations including blacksmithing, weaving, wood carving, and pottery-making."},
+  {"q": "Early external influences on the Nigerian area, before 1800, included contact with", "o": ["Arab traders and later European explorers/traders", "only Asian merchants", "no external contact at all", "Australian settlers"], "a": 0, "e": "Before 1800, the Nigerian area experienced external influence through Arab trade and Islamic contact in the north, and later European traders along the coast."},
+  {"q": "The spread of Islam into parts of Northern Nigeria before 1800 came largely through", "o": ["Trans-Saharan trade and contact with North African Muslims", "European colonization", "forced conversion by the British", "migration from South America"], "a": 0, "e": "Islam spread into Northern Nigeria mainly through Trans-Saharan trade routes and interaction with Muslim traders and scholars from North Africa."},
+  {"q": "European contact with the coastal areas of the Nigerian region before 1800 was driven mainly by interest in", "o": ["mining diamonds", "trade, including the transatlantic slave trade", "building schools", "establishing universities"], "a": 1, "e": "Early European contact along the coast was driven primarily by trade interests, which tragically included the transatlantic slave trade."},
+  {"q": "The earliest European traders to arrive on the West African coast, including areas of present-day Nigeria, were mainly the", "o": ["Portuguese", "British", "French", "Germans"], "a": 0, "e": "The Portuguese were among the earliest European traders to establish contact along the West African coast from the 15th century."},
+  {"q": "Before 1800, political organization among Nigerian peoples ranged from", "o": ["centralized kingdoms to decentralized village-based systems", "only democratic republics", "only military dictatorships", "a single unified government for the whole region"], "a": 0, "e": "Political systems varied widely, from large centralized kingdoms like Oyo and Benin to decentralized systems seen in many Igbo communities."},
+  {"q": "Which factor most contributed to the rise and expansion of pre-colonial states like Oyo and Benin?", "o": ["Strong military organization and control of trade routes", "Foreign aid from Europe", "Absence of any government", "Isolation from all neighbouring communities"], "a": 0, "e": "States like Oyo and Benin expanded through strong military organization, effective administration, and control of important trade routes."},
+],
+  econ:[
+  {"q": "Economics is best defined as the study of", "o": ["how to become wealthy quickly", "how individuals and societies allocate scarce resources to satisfy unlimited wants", "government spending only", "the stock market only"], "a": 1, "e": "Economics studies how individuals and societies allocate limited (scarce) resources to satisfy competing, unlimited wants."},
+  {"q": "Economics is considered a science mainly because it", "o": ["uses systematic methods of observation, theory, and analysis", "only deals with money", "has no theories at all", "relies purely on guesswork"], "a": 0, "e": "Economics is regarded as a social science because it applies systematic observation, theory-building, and analysis to study economic behaviour."},
+  {"q": "The basic economic problem faced by every society is", "o": ["too much wealth", "scarcity of resources relative to unlimited human wants", "excess of unused resources", "lack of any human wants"], "a": 1, "e": "The fundamental economic problem is scarcity — resources are limited while human wants are virtually unlimited."},
+  {"q": "Scarcity in economics refers to", "o": ["the complete absence of resources", "the situation where available resources are insufficient to satisfy all wants", "a temporary shortage of one specific good", "unlimited resources available to everyone"], "a": 1, "e": "Scarcity describes the basic economic condition where resources are limited relative to the unlimited wants they could satisfy."},
+  {"q": "The cost of the next best alternative given up when a choice is made is called", "o": ["Sunk cost", "Opportunity cost", "Fixed cost", "Marginal cost"], "a": 1, "e": "Opportunity cost is the value of the next best alternative that is forgone when a particular choice is made."},
+  {"q": "Which of the following is an example of a basic economic concept studied in Economics?", "o": ["Choice and opportunity cost", "Photosynthesis", "Chemical bonding", "Poetic devices"], "a": 0, "e": "Choice and opportunity cost are foundational concepts in Economics, arising directly from the problem of scarcity."},
+  {"q": "The four basic economic problems every economy must solve include what, how, for whom, and", "o": ["when to trade", "how much to produce/allocate resources over time", "who owns the land", "what colour to use"], "a": 1, "e": "Besides what, how, and for whom to produce, economies must also decide how much to produce and how to allocate resources over time."},
+  {"q": "A curve that shows the maximum possible combinations of two goods an economy can produce with its given resources is called the", "o": ["Demand curve", "Production Possibility Frontier (PPF)", "Supply curve", "Indifference curve"], "a": 1, "e": "The Production Possibility Frontier (PPF) illustrates the maximum output combinations of two goods an economy can produce with fixed resources and technology."},
+  {"q": "Points that lie inside (within) the Production Possibility Frontier represent", "o": ["efficient use of resources", "underutilization of available resources", "impossible levels of production", "maximum possible output"], "a": 1, "e": "Points inside the PPF indicate that resources are not being fully or efficiently utilized, so more of both goods could be produced."},
+  {"q": "Points that lie outside the Production Possibility Frontier are", "o": ["achievable with current resources and technology", "currently unattainable with existing resources and technology", "the most efficient production points", "irrelevant to economic analysis"], "a": 1, "e": "Points beyond the PPF are unattainable given the current level of resources and technology available to the economy."},
+  {"q": "A shift of the entire Production Possibility Frontier outward indicates", "o": ["economic decline", "economic growth, due to increased resources or improved technology", "a decrease in resources", "no change in the economy"], "a": 1, "e": "An outward shift of the PPF represents economic growth, resulting from an increase in resources or improvements in technology."},
+  {"q": "An economic system in which resource allocation decisions are made mainly by market forces of demand and supply is called a", "o": ["Command economy", "Free market (capitalist) economy", "Mixed economy only", "Traditional economy"], "a": 1, "e": "In a free market (capitalist) economy, prices and resource allocation are primarily determined by the interaction of demand and supply."},
+  {"q": "An economic system in which the government makes most decisions on production, resource allocation, and distribution is called a", "o": ["Free market economy", "Command (planned) economy", "Mixed economy", "Barter economy"], "a": 1, "e": "In a command (planned) economy, the government (or central planning authority) makes the key decisions about production and resource allocation."},
+  {"q": "An economic system that combines elements of both free market and government control is called a", "o": ["Traditional economy", "Command economy", "Mixed economy", "Barter economy"], "a": 2, "e": "A mixed economy combines features of both the free market and government-planned systems, with both private enterprise and government intervention."},
+  {"q": "An economic system where production and distribution decisions are guided mainly by customs and traditions passed down through generations is called a", "o": ["Traditional economy", "Command economy", "Mixed economy", "Free market economy"], "a": 0, "e": "In a traditional economy, economic decisions are guided largely by long-standing customs, traditions, and inherited roles."},
+  {"q": "Which of the following economic questions asks who receives the goods and services produced?", "o": ["What to produce?", "How to produce?", "For whom to produce?", "When to produce?"], "a": 2, "e": "'For whom to produce?' addresses how goods and services are distributed among members of society."},
+  {"q": "A simple diagram or model used to represent economic relationships, such as demand and supply, is an example of an", "o": ["economic tool of analysis", "agricultural implement", "legal document", "historical record"], "a": 0, "e": "Diagrams, graphs, and models are key tools of economic analysis, used to represent and study relationships like demand and supply."},
+  {"q": "An 'assumption' in economic analysis, such as 'ceteris paribus' (all else being equal), is used mainly to", "o": ["make the analysis more complicated", "simplify analysis by holding other factors constant while studying one variable", "eliminate the need for any theory", "replace real-world data entirely"], "a": 1, "e": "The 'ceteris paribus' assumption simplifies economic analysis by holding other variables constant while examining the effect of one factor at a time."},
+  {"q": "A factor of production that includes natural resources like land, water, and minerals is called", "o": ["Labour", "Land", "Capital", "Entrepreneurship"], "a": 1, "e": "'Land' as a factor of production refers to all natural resources used in production, including soil, water, and minerals."},
+  {"q": "The factor of production that involves human effort, whether physical or mental, used in producing goods and services is called", "o": ["Capital", "Land", "Labour", "Enterprise"], "a": 2, "e": "Labour refers to the human effort, both physical and mental, contributed toward the production of goods and services."},
+],
+  commerce:[
+  {"q": "Commerce is best defined as", "o": ["only the manufacturing of goods", "all activities involved in the buying, selling, and distribution of goods and services, including trade and aids to trade", "farming activities only", "government taxation policy"], "a": 1, "e": "Commerce covers all activities involved in the exchange of goods and services, including trade itself and the various aids to trade (transport, banking, insurance, etc.)."},
+  {"q": "The main branches of commerce are", "o": ["trade and aids to trade", "only manufacturing and mining", "only banking and insurance", "farming and fishing"], "a": 0, "e": "Commerce is broadly divided into trade (buying and selling) and aids to trade (services that facilitate trade, like transport and banking)."},
+  {"q": "Trade refers to", "o": ["the entire process of production only", "the buying and selling of goods and services", "the transportation of goods only", "the manufacturing of raw materials"], "a": 1, "e": "Trade is the branch of commerce concerned specifically with the buying and selling of goods and services."},
+  {"q": "Trade carried out within the boundaries of a single country is called", "o": ["International trade", "Home (domestic) trade", "Export trade", "Entrepot trade"], "a": 1, "e": "Home (domestic) trade refers to the buying and selling of goods and services within the borders of one country."},
+  {"q": "Trade carried out between two or more different countries is called", "o": ["Home trade", "Retail trade", "International trade", "Wholesale trade"], "a": 2, "e": "International trade involves the exchange of goods and services across national borders, between different countries."},
+  {"q": "Home trade is broadly divided into", "o": ["Wholesale trade and retail trade", "Import trade and export trade only", "Entrepot trade and re-export trade", "Barter trade and cash trade"], "a": 0, "e": "Home (domestic) trade is divided into wholesale trade (selling in bulk) and retail trade (selling in small quantities to final consumers)."},
+  {"q": "A wholesaler is a trader who", "o": ["sells goods directly to final consumers in small quantities", "buys goods in bulk from producers and sells in smaller quantities to retailers", "only manufactures goods", "only exports goods abroad"], "a": 1, "e": "A wholesaler buys goods in large quantities from producers or manufacturers and sells them in smaller quantities to retailers."},
+  {"q": "A retailer is a trader who", "o": ["sells goods in bulk to other traders", "sells goods in small quantities directly to final consumers", "only imports goods from abroad", "manufactures raw materials"], "a": 1, "e": "A retailer purchases goods, often from wholesalers, and sells them in small quantities directly to the final consumer."},
+  {"q": "International trade involving the import of goods into a country from abroad is called", "o": ["Export trade", "Import trade", "Entrepot trade", "Home trade"], "a": 1, "e": "Import trade refers to the purchase of goods and services from other countries into the home country."},
+  {"q": "International trade involving the sale of goods from a country to other countries is called", "o": ["Import trade", "Export trade", "Home trade", "Retail trade"], "a": 1, "e": "Export trade refers to the sale of goods and services produced in the home country to foreign countries."},
+  {"q": "Entrepot trade refers to", "o": ["trade conducted entirely within one country", "the importation of goods into a country for re-export to other countries", "the sale of goods to final consumers only", "farming for subsistence"], "a": 1, "e": "Entrepot trade involves importing goods into a country, often for storage or minor processing, before re-exporting them to other countries."},
+  {"q": "Occupation, in the economic sense, refers to", "o": ["a person's leisure activities", "the type of work or job an individual engages in to earn a living", "the location where a person resides", "a government policy"], "a": 1, "e": "Occupation refers to the specific job, trade, or profession an individual engages in to earn income and a livelihood."},
+  {"q": "Occupations that involve the direct extraction of raw materials from nature, such as fishing and mining, are called", "o": ["Primary occupations", "Secondary occupations", "Tertiary occupations", "Commercial occupations only"], "a": 0, "e": "Primary occupations involve the direct extraction of natural resources, such as farming, fishing, and mining."},
+  {"q": "Occupations that involve converting raw materials into finished or semi-finished goods, such as manufacturing, are called", "o": ["Primary occupations", "Secondary occupations", "Tertiary occupations", "Extractive occupations"], "a": 1, "e": "Secondary occupations involve processing or manufacturing raw materials into finished or semi-finished products."},
+  {"q": "Occupations that provide services rather than physical goods, such as teaching or banking, are called", "o": ["Primary occupations", "Secondary occupations", "Tertiary occupations", "Agricultural occupations"], "a": 2, "e": "Tertiary occupations involve the provision of services, such as banking, teaching, healthcare, and transportation."},
+  {"q": "Production, in the commercial sense, refers to", "o": ["only the buying of goods", "the creation of goods and services that satisfy human wants", "the storage of finished goods only", "government spending"], "a": 1, "e": "Production refers to the process of creating goods and services that are capable of satisfying human wants and needs."},
+  {"q": "Which of the following is an example of primary production?", "o": ["Fishing", "Manufacturing of shoes", "Retailing of clothes", "Banking services"], "a": 0, "e": "Fishing is a form of primary production, as it involves the direct extraction of a natural resource."},
+  {"q": "Which of the following is an example of secondary production?", "o": ["Crude oil extraction", "Refining crude oil into petrol", "Farming of crops", "Wholesaling of goods"], "a": 1, "e": "Refining crude oil into usable products like petrol is secondary production, as it involves processing a raw material into a finished product."},
+  {"q": "Which of the following is an example of tertiary production?", "o": ["Mining of gold", "Manufacturing of furniture", "Insurance services", "Crop farming"], "a": 2, "e": "Insurance is a tertiary (service) production activity, as it provides a service rather than a physical, tangible good."},
+  {"q": "The interdependence between primary, secondary, and tertiary production means that", "o": ["each stage operates in complete isolation from the others", "each stage relies on the others to function effectively, e.g. secondary production needs raw materials from primary production", "only tertiary production is important", "primary production has no connection to the other stages"], "a": 1, "e": "The stages of production are interdependent — for example, secondary (manufacturing) production relies on raw materials supplied by primary production, and tertiary services support both."},
+],
+  account:[
+  {"q": "The users of accounting information mainly include", "o": ["only the government", "owners, managers, creditors, employees and government", "only competitors", "only customers"], "a": 1, "e": "Accounting information is used by a wide range of stakeholders, including owners, managers, creditors, employees, and government agencies."},
+  {"q": "The branch of accounting concerned with providing information to external users like investors and creditors is", "o": ["Management accounting", "Financial accounting", "Cost accounting", "Tax accounting"], "a": 1, "e": "Financial accounting focuses on preparing reports (like financial statements) for external users such as investors and creditors."},
+  {"q": "The branch of accounting that provides information to help managers plan and control internal operations is", "o": ["Financial accounting", "Management accounting", "Auditing", "Public sector accounting"], "a": 1, "e": "Management accounting provides internal reports and analysis to help managers with planning, controlling and decision-making."},
+  {"q": "An asset is best described as", "o": ["something a business owes to others", "a resource owned or controlled by a business that has future economic value", "the owner's capital only", "a business expense"], "a": 1, "e": "An asset is a resource owned or controlled by a business, expected to provide future economic benefits."},
+  {"q": "A liability is best described as", "o": ["a resource owned by a business", "an amount a business owes to outsiders", "the profit earned by a business", "the capital invested by the owner"], "a": 1, "e": "A liability is an obligation or debt that a business owes to external parties, such as creditors or lenders."},
+  {"q": "Capital in accounting refers to", "o": ["the total assets of a business", "the amount invested by the owner(s) into the business", "the total liabilities of a business", "the profit for the year"], "a": 1, "e": "Capital represents the owner's investment in the business, equal to assets minus liabilities."},
+  {"q": "An asset that is expected to be converted to cash or used up within one year is called a", "o": ["Fixed asset", "Current asset", "Intangible asset", "Contingent asset"], "a": 1, "e": "Current assets, such as cash, inventory and receivables, are expected to be used or converted to cash within one year."},
+  {"q": "An asset of a long-term nature, used in the business rather than for resale, is called a", "o": ["Current asset", "Fixed (non-current) asset", "Liquid asset", "Contingent asset"], "a": 1, "e": "Fixed (non-current) assets, like land, buildings, and equipment, are held long-term for use in operating the business."},
+  {"q": "A liability due to be settled within one year is called a", "o": ["Long-term liability", "Current liability", "Contingent liability", "Deferred liability"], "a": 1, "e": "Current liabilities, such as accounts payable and short-term loans, are obligations due to be settled within one year."},
+  {"q": "The book used to record cash and bank transactions is called the", "o": ["Purchases journal", "Cash book", "Sales journal", "General journal"], "a": 1, "e": "The cash book records all cash and bank receipts and payments of a business."},
+  {"q": "A discount given to encourage prompt payment of a debt is called a", "o": ["Trade discount", "Cash discount", "Bulk discount", "Seasonal discount"], "a": 1, "e": "A cash discount is offered to customers who pay their debts promptly, encouraging early settlement."},
+  {"q": "A discount given to encourage the purchase of goods in large quantities, deducted before invoicing, is called a", "o": ["Cash discount", "Trade discount", "Loyalty discount", "Interest discount"], "a": 1, "e": "A trade discount is a reduction off the list price, often for bulk purchases, and is not recorded separately in the books."},
+  {"q": "The book that records credit purchases of goods is called the", "o": ["Sales journal", "Purchases journal", "Cash book", "Returns inward journal"], "a": 1, "e": "The purchases journal (purchases day book) records all credit purchases of goods made by a business."},
+  {"q": "The book that records credit sales of goods is called the", "o": ["Purchases journal", "Sales journal", "Petty cash book", "Journal proper"], "a": 1, "e": "The sales journal (sales day book) records all credit sales of goods made by a business."},
+  {"q": "Goods returned by customers to the business are recorded in the", "o": ["Returns outward journal", "Returns inward journal", "Sales journal", "Cash book"], "a": 1, "e": "The returns inward journal records goods that customers return to the business (also called sales returns)."},
+  {"q": "Goods returned by the business to its suppliers are recorded in the", "o": ["Returns inward journal", "Returns outward journal", "Purchases journal", "Petty cash book"], "a": 1, "e": "The returns outward journal records goods the business returns to its suppliers (also called purchases returns)."},
+  {"q": "A small fund used to pay for minor day-to-day business expenses is called the", "o": ["Cash book", "Petty cash book", "Sales book", "Purchases book"], "a": 1, "e": "The petty cash book records small, routine cash expenses like postage, stationery, and minor office supplies."},
+  {"q": "A statement prepared by a bank to show a customer's transactions over a period is called a", "o": ["Trial balance", "Bank statement", "Cash flow statement", "Invoice"], "a": 1, "e": "A bank statement is issued by a bank showing all deposits, withdrawals, and balances in a customer's account over a period."},
+  {"q": "A reconciliation prepared to explain the difference between the cash book balance and the bank statement balance is called a", "o": ["Trial balance", "Bank reconciliation statement", "Trading account", "Suspense account"], "a": 1, "e": "A bank reconciliation statement identifies and explains differences between a business's cash book and its bank statement."},
+  {"q": "The financial statement that shows a business's assets, liabilities and capital at a specific point in time is the", "o": ["Trading account", "Profit and loss account", "Balance sheet", "Cash flow statement"], "a": 2, "e": "The balance sheet presents a snapshot of a business's assets, liabilities, and capital as at a specific date."},
+  {"q": "Net profit is added to which section of the balance sheet?", "o": ["Fixed assets", "Current liabilities", "Owner's capital", "Current assets"], "a": 2, "e": "Net profit increases the owner's capital (equity), as it represents additional value earned by the business for the owner."},
+  {"q": "The two straight-line depreciation formula components are the cost of the asset, its residual (scrap) value, and its", "o": ["Market value", "Useful life", "Selling price", "Insurance value"], "a": 1, "e": "Straight-line depreciation = (Cost − Residual value) / Useful life, spreading depreciation evenly over the asset's useful life."},
+  {"q": "An asset costs ₦10,000, has a residual value of ₦2,000, and a useful life of 4 years. The annual straight-line depreciation is", "o": ["₦1,500", "₦2,000", "₦2,500", "₦3,000"], "a": 1, "e": "Annual depreciation = (Cost − Residual value) / Useful life = (10,000 − 2,000) / 4 = 8,000 / 4 = ₦2,000."},
+  {"q": "A method of depreciation that charges a fixed percentage on the asset's reducing book value each year is the", "o": ["Straight line method", "Reducing balance method", "Revaluation method", "Units of output method"], "a": 1, "e": "The reducing (declining) balance method applies a fixed percentage to the asset's remaining book value each year, so charges fall over time."},
+  {"q": "Working capital is calculated as", "o": ["Fixed assets minus current liabilities", "Current assets minus current liabilities", "Total assets minus total liabilities", "Capital plus long-term liabilities"], "a": 1, "e": "Working capital = Current assets − Current liabilities, showing the short-term liquidity available to a business."},
+  {"q": "The accounting concept that assumes a business will continue operating in the foreseeable future is called the", "o": ["Prudence concept", "Going concern concept", "Matching concept", "Consistency concept"], "a": 1, "e": "The going concern concept assumes a business will continue operations for the foreseeable future, justifying asset valuation at cost rather than liquidation value."},
+  {"q": "The accounting concept requiring that expenses be recorded in the same period as the revenues they help generate is the", "o": ["Matching concept", "Going concern concept", "Materiality concept", "Realization concept"], "a": 0, "e": "The matching concept requires expenses to be recognized in the same accounting period as the revenues they helped to generate."},
+  {"q": "The accounting concept that requires the same accounting methods to be used from one period to the next is the", "o": ["Consistency concept", "Prudence concept", "Dual aspect concept", "Business entity concept"], "a": 0, "e": "The consistency concept requires a business to apply the same accounting methods and policies from one period to the next, for comparability."},
+  {"q": "The concept that treats a business as separate and distinct from its owner(s) is the", "o": ["Going concern concept", "Business entity concept", "Matching concept", "Money measurement concept"], "a": 1, "e": "The business entity concept treats the business as a separate accounting unit from its owner(s), keeping personal and business finances distinct."},
+  {"q": "The concept that only transactions which can be expressed in monetary terms are recorded in accounts is the", "o": ["Money measurement concept", "Prudence concept", "Materiality concept", "Realization concept"], "a": 0, "e": "The money measurement concept states that accounting only records transactions and events that can be expressed in monetary terms."},
+    {q:"Accounting is best defined as",o:["The process of manufacturing goods","The process of recording, classifying, summarizing and interpreting financial transactions","The buying and selling of shares only","The study of consumer behaviour"],a:1,e:"Accounting involves recording, classifying, summarizing, and interpreting financial data to aid decision-making."},
+    {q:"The principle that every transaction has two effects — a debit and a credit — is called",o:["Single entry principle","Double entry principle","Cash basis principle","Accrual principle"],a:1,e:"The double entry principle states that every transaction affects at least two accounts — one debit and one credit — of equal value."},
+    {q:"In double entry bookkeeping, an increase in an asset account is recorded as a",o:["Credit","Debit","Balance carried down","Contra entry"],a:1,e:"Assets increase on the debit side of an account under the double entry system."},
+    {q:"The document that lists all ledger balances to check the arithmetic accuracy of the books is called the",o:["Trial balance","Balance sheet","Trading account","Journal"],a:0,e:"A trial balance lists all debit and credit balances from the ledger to confirm they are equal."},
+    {q:"Personal accounts relate to",o:["Assets and liabilities only","Individuals, firms and organizations that the business deals with","Expenses and revenues only","Fixed assets only"],a:1,e:"Personal accounts record transactions with people or organizations, such as debtors and creditors."},
+    {q:"Which type of account records assets, liabilities and capital?",o:["Nominal account","Real account","Personal account","Suspense account"],a:1,e:"Real accounts deal with assets, liabilities, and capital of the business."},
+    {q:"Accounts dealing with expenses, losses, income and gains are called",o:["Real accounts","Personal accounts","Nominal accounts","Control accounts"],a:2,e:"Nominal accounts record income, gains, expenses, and losses of the business over a period."},
+    {q:"The book of original entry where transactions are first recorded before posting to the ledger is the",o:["Ledger","Journal","Trial balance","Cash book"],a:1,e:"The journal is the book of prime (original) entry where transactions are first recorded chronologically."},
+    {q:"The book that contains all the individual accounts of a business is called the",o:["Journal","Ledger","Trial balance","Balance sheet"],a:1,e:"The ledger is the principal book of accounts where all transactions are classified into individual accounts."},
+    {q:"The accounting equation is expressed as",o:["Assets = Liabilities − Capital","Assets = Capital + Liabilities","Capital = Assets + Liabilities","Liabilities = Assets + Capital"],a:1,e:"The accounting equation states Assets = Capital + Liabilities, showing the resources of a business are financed by owners and creditors."},
+    {q:"The gradual reduction in the value of a fixed asset due to wear and tear or the passage of time is called",o:["Appreciation","Depreciation","Amortization of debt","Revaluation"],a:1,e:"Depreciation spreads the cost of a fixed asset over its useful life as it loses value through use or time."},
+    {q:"A method of depreciation that charges an equal amount of depreciation each year is the",o:["Reducing balance method","Straight line method","Revaluation method","Units of production method"],a:1,e:"The straight line method spreads depreciation evenly over the asset's useful life, giving the same charge each year."},
+    {q:"Debts owed to a business that are considered irrecoverable are called",o:["Bad debts","Prepaid expenses","Accrued income","Contingent liabilities"],a:0,e:"Bad debts are amounts owed by customers that a business has given up hope of collecting and writes off as a loss."},
+    {q:"An estimated amount set aside to cover debts that might become uncollectible in future is called",o:["Bad debts written off","Provision for doubtful debts","Accrued expenses","Suspense account"],a:1,e:"A provision for doubtful debts is an estimate made in advance for debts that may not be recovered."},
+    {q:"Expenditure incurred to acquire or improve a fixed asset, providing long-term benefit to the business, is called",o:["Revenue expenditure","Capital expenditure","Deferred income","Operating expense"],a:1,e:"Capital expenditure is spent on acquiring or improving long-term assets, such as buying machinery or buildings."},
+    {q:"Expenditure incurred in the day-to-day running of a business, such as rent and wages, is called",o:["Capital expenditure","Revenue expenditure","Deferred expenditure","Asset expenditure"],a:1,e:"Revenue expenditure covers routine, short-term costs of running the business, fully consumed within the accounting period."},
+    {q:"The account prepared to determine the gross profit or gross loss of a business is the",o:["Trading account","Profit and loss account","Balance sheet","Cash flow statement"],a:0,e:"The trading account calculates gross profit (or loss) by comparing net sales with the cost of goods sold."},
+    {q:"The account prepared to determine the net profit or net loss of a business is the",o:["Trading account","Profit and loss account","Trial balance","Journal"],a:1,e:"The profit and loss account deducts operating expenses from gross profit to arrive at net profit or net loss."},
+    {q:"Gross profit is calculated as",o:["Net Sales − Cost of Goods Sold","Net Sales + Cost of Goods Sold","Total Expenses − Total Income","Capital − Liabilities"],a:0,e:"Gross profit = Net Sales minus the Cost of Goods Sold (COGS)."},
+    {q:"A temporary account opened to record the difference when a trial balance fails to balance is called a",o:["Control account","Suspense account","Nominal account","Contra account"],a:1,e:"A suspense account temporarily holds the difference in a trial balance until the error causing it is found and corrected."},
+  ],
+  irk:[
+  {"q": "The Qur'an is believed by Muslims to be the direct word of", "o": ["a human scholar", "Allah, revealed to Prophet Muhammad (SAW)", "an angel acting independently", "early Islamic historians"], "a": 1, "e": "Muslims believe the Qur'an is the literal, direct word of Allah, revealed to Prophet Muhammad (SAW) through the angel Jibril (Gabriel)."},
+  {"q": "The angel through whom the Qur'an was revealed to Prophet Muhammad (SAW) is", "o": ["Mika'il", "Jibril (Gabriel)", "Israfil", "Azra'il"], "a": 1, "e": "Islamic tradition holds that the angel Jibril (Gabriel) was the medium through whom Allah revealed the Qur'an to the Prophet."},
+  {"q": "The cave where Prophet Muhammad (SAW) received the first revelation is called", "o": ["Cave of Thawr", "Cave of Hira", "Cave of Uhud", "Cave of Badr"], "a": 1, "e": "The first revelation of the Qur'an came to Prophet Muhammad (SAW) in the Cave of Hira, on Mount Nur near Makkah."},
+  {"q": "The first word revealed to Prophet Muhammad (SAW), marking the start of the Qur'an's revelation, was", "o": ["Bismillah", "Iqra (Read)", "Alhamdulillah", "Subhanallah"], "a": 1, "e": "The first revelation began with the command 'Iqra' (Read), the opening word of Surah Al-Alaq."},
+  {"q": "The Qur'an was revealed over a period of approximately", "o": ["1 year", "5 years", "23 years", "50 years"], "a": 2, "e": "The Qur'an was revealed gradually to Prophet Muhammad (SAW) over a period of approximately 23 years."},
+  {"q": "The Qur'an was revealed in two main phases, corresponding to the Prophet's time in", "o": ["Makkah and Madinah", "Egypt and Syria", "Jerusalem and Baghdad", "Andalusia and Persia"], "a": 0, "e": "Qur'anic revelation is broadly divided into the Makkan period (before Hijrah) and the Madinan period (after Hijrah)."},
+  {"q": "The Qur'an is divided into chapters known as", "o": ["Ayahs", "Surahs", "Hadiths", "Juz"], "a": 1, "e": "The Qur'an is organized into 114 chapters, each called a Surah."},
+  {"q": "Each verse within a chapter of the Qur'an is called an", "o": ["Ayah", "Hadith", "Sunnah", "Fiqh"], "a": 0, "e": "Individual verses of the Qur'an are called Ayahs."},
+  {"q": "The Qur'an is traditionally divided into how many equal parts (Juz) for ease of recitation?", "o": ["10", "20", "30", "40"], "a": 2, "e": "The Qur'an is divided into 30 equal parts called Juz, often used to complete recitation of the whole Qur'an within a month, such as Ramadan."},
+  {"q": "The preservation of the Qur'an in its original form is primarily attributed to", "o": ["random chance", "Allah's promise and the practice of memorization and written compilation", "modern printing technology alone", "translation into many languages"], "a": 1, "e": "Muslims believe Allah promised to preserve the Qur'an, and this was upheld through memorization (hifz) and careful written compilation."},
+  {"q": "During the time of Prophet Muhammad (SAW), the Qur'an was preserved mainly through", "o": ["printing presses", "memorization by companions and writing on available materials", "digital recording", "translation into Latin"], "a": 1, "e": "In the Prophet's era, the Qur'an was preserved through memorization by his companions and by writing verses on materials like parchment, bone, and palm leaves."},
+  {"q": "The compilation of the Qur'an into a single written volume (mushaf) was completed mainly during the caliphate of", "o": ["Abu Bakr and Uthman", "Umar alone", "Ali alone", "Muawiyyah"], "a": 0, "e": "The Qur'an was first compiled into a single collection under Caliph Abu Bakr, and later standardized into one official version under Caliph Uthman."},
+  {"q": "A person who has memorized the entire Qur'an is called a", "o": ["Mufti", "Hafiz", "Imam only", "Qadi"], "a": 1, "e": "A Hafiz (plural: Huffaz) is someone who has fully memorized the Qur'an."},
+  {"q": "The Qur'an is considered important to Muslims mainly because it serves as", "o": ["a historical record only", "the primary source of guidance for Islamic belief and practice", "a book of folklore", "a collection of poems with no religious significance"], "a": 1, "e": "The Qur'an is the primary and most authoritative source of guidance for Muslim belief, worship, and conduct."},
+  {"q": "Which of the following is a key importance of the Qur'an in a Muslim's life?", "o": ["It has no relevance to daily conduct", "It guides worship, morality, and social conduct", "It is used only during Ramadan", "It replaces the need for prayer"], "a": 1, "e": "The Qur'an guides Muslims in worship, moral behaviour, and social relations, forming a comprehensive way of life."},
+  {"q": "The belief in the divine authenticity of the Qur'an means Muslims hold that it", "o": ["was written entirely by Prophet Muhammad (SAW) himself", "is the unaltered, genuine word of Allah", "was translated from earlier scriptures only", "has been significantly changed over time"], "a": 1, "e": "Divine authenticity means Muslims believe the Qur'an is the genuine, unaltered word of Allah, exactly as revealed."},
+  {"q": "Muslims point to the linguistic and literary excellence of the Qur'an as evidence of its", "o": ["human origin", "divine authenticity and inimitability", "translation errors", "historical inaccuracy"], "a": 1, "e": "The Qur'an's unmatched linguistic and literary quality is cited by Muslims as evidence supporting its divine origin and inimitability."},
+  {"q": "The Qur'an is recited in its original language, which is", "o": ["Persian", "Arabic", "Urdu", "Turkish"], "a": 1, "e": "The Qur'an was revealed in, and continues to be primarily recited in, its original language, Arabic."},
+  {"q": "The Qur'an addresses guidance for humanity as a whole, describing itself as a", "o": ["guide for a single tribe only", "guide (Huda) for all mankind", "book of entertainment", "record of ancient wars only"], "a": 1, "e": "The Qur'an describes itself as a source of guidance (Huda) intended for all of humanity, not limited to a single group."},
+  {"q": "The science concerned with the correct pronunciation and rules of recitation of the Qur'an is called", "o": ["Tafsir", "Tajwid", "Fiqh", "Hadith"], "a": 1, "e": "Tajwid is the discipline governing the correct pronunciation and rules of reciting the Qur'an."},
+  ],
+};
+
+const DEFAULT_Q = [
+  {q:"Best strategy for a difficult CBT question:",o:["Leave blank","Spend all time on it","Skip and return","Always pick A"],a:2,e:"Skip hard questions, finish easy ones, then return with remaining time."},
+  {q:"Recommended minimum JAMB score for most universities:",o:["150","180","200","250"],a:2,e:"Most universities require 200+, though some set higher cut-offs."},
+  {q:"Most effective long-term study technique:",o:["Cramming","Spaced repetition","Reading once","Avoiding past questions"],a:1,e:"Spaced repetition — reviewing at increasing intervals — is the most evidence-based technique."},
+  {q:"Minutes in 1 hour 30 minutes:",o:["60","80","90","100"],a:2,e:"60 + 30 = 90 minutes."},
+  {q:"What % of JAMB questions follow patterns from previous years?",o:["30%","50%","70%","90%"],a:2,e:"Research shows ~70% of JAMB questions follow patterns from previous years."},
+];
+
+function getQs(id, count) {
+  count = count || 20;
+  let qs = QUESTIONS[id] ? [...QUESTIONS[id]] : [];
+  while (qs.length < count) qs = [...qs, ...DEFAULT_Q];
+  return shuffle(qs).slice(0, count);
+}
+function shuffle(a) {
+  for (let i=a.length-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+const grid = document.getElementById('subjGrid');
+SUBJECTS.forEach(s => {
+  const c = document.createElement('div');
+  c.className = 'sc';
+  c.innerHTML = `<div class="sc-icon">${s.icon}</div><div class="sc-name">${s.name}</div><div class="sc-meta">20 Qs · 25 mins</div><div class="sc-badge">Live</div>`;
+  c.onclick = () => openCountModal(s);
+  grid.appendChild(c);
+});
+
+const COUNT_OPTS = [10, 20, 30, 50];
+
+function openCountModal(s) {
+  const avail = (QUESTIONS[s.id] || []).length || DEFAULT_Q.length;
+  document.getElementById('mIcon').textContent = s.icon;
+  document.getElementById('mName').textContent = s.name;
+  const cg = document.getElementById('countGrid');
+  cg.innerHTML = COUNT_OPTS.map(n => {
+    const disabled = n > avail;
+    const label = disabled ? `Only ${avail} available` : '~' + Math.round(n*1.25) + ' mins';
+    return `<div class="count-opt${disabled?' disabled':''}" ${disabled?'':`onclick="startTest(SUBJECTS.find(x=>x.id==='${s.id}'), ${n})"`}>
+      <div class="count-opt-n">${n}</div><div class="count-opt-l">${label}</div>
+    </div>`;
+  }).join('') + `<div class="count-opt" onclick="startTest(SUBJECTS.find(x=>x.id==='${s.id}'), ${avail})">
+      <div class="count-opt-n">${avail}</div><div class="count-opt-l">All available</div>
+    </div>`;
+  document.getElementById('countModal').classList.add('show');
+}
+function closeCountModal() {
+  document.getElementById('countModal').classList.remove('show');
+}
+
+let subj, qs, cur, ans, timerInt, timeLeft, startTime;
+
+function startTest(s, count) {
+  closeCountModal();
+  subj=s; qs=getQs(s.id, count); cur=0; ans={};
+  timeLeft = Math.max(5, Math.round(qs.length*1.25)) * 60;
+  startTime=Date.now();
+  document.getElementById('tIcon').textContent = s.icon;
+  document.getElementById('tName').textContent = s.name;
+  document.querySelector('.test-subj-week').textContent = `${qs.length} Questions · ${Math.round(timeLeft/60)} mins`;
+  buildDots();
+  show('testScreen');
+  renderQ();
+  startTimer();
+}
+
+function buildDots() {
+  const el = document.getElementById('qDots');
+  el.innerHTML = '';
+  qs.forEach((_,i) => {
+    const d=document.createElement('div');
+    d.className='qdot'+(i===0?' cur':'');
+    d.onclick=()=>jumpTo(i);
+    el.appendChild(d);
+  });
+}
+
+function updateDots() {
+  document.querySelectorAll('.qdot').forEach((d,i) => {
+    d.className='qdot';
+    if(i===cur) d.classList.add('cur');
+    if(ans[i]!==undefined) d.classList.add(ans[i]===qs[i].a ? 'ok' : 'bad');
+  });
+}
+
+function renderQ() {
+  const q=qs[cur]; const total=qs.length; const LETTERS=['A','B','C','D'];
+  document.getElementById('qNum').textContent=`Question ${cur+1} of ${total}`;
+  document.getElementById('qText').textContent=q.q;
+  document.getElementById('progFill').style.width=`${((cur+1)/total)*100}%`;
+  document.getElementById('progTxt').textContent=`${cur+1}/${total}`;
+  const locked = ans[cur]!==undefined;
+  const optsEl = document.getElementById('opts');
+  optsEl.innerHTML = q.o.map((opt,i) => {
+    let cls = 'opt' + (locked ? ' locked' : '');
+    if(locked) {
+      if(i===q.a) cls+=' ok';
+      else if(i===ans[cur]) cls+=' bad';
+    } else if(i===ans[cur]) cls+=' sel';
+    return `<div class="${cls}" ${locked?'':'onclick="pick('+i+')"'}><div class="opt-ltr">${LETTERS[i]}</div>${opt}</div>`;
+  }).join('');
+  const exp=document.getElementById('expBox');
+  if(locked) {
+    const ok=ans[cur]===q.a;
+    exp.textContent=(ok?'✅ Correct! ':'❌ Incorrect. ')+q.e;
+    exp.className='exp-box show '+(ok?'ok-exp':'bad-exp');
+  } else { exp.className='exp-box'; exp.textContent=''; }
+  document.getElementById('prevBtn').disabled=cur===0;
+  const nb=document.getElementById('nextBtn');
+  if(cur===total-1) { nb.textContent='Submit ✓'; nb.className='btn-next submit'; }
+  else { nb.textContent='Next →'; nb.className='btn-next'; }
+  updateDots();
+}
+
+function pick(i) {
+  if(ans[cur]!==undefined) return;
+  ans[cur]=i; renderQ();
+}
+function go(dir) {
+  if(dir===1 && cur===qs.length-1) { submitTest(); return; }
+  cur=Math.max(0,Math.min(qs.length-1,cur+dir));
+  renderQ();
+}
+function jumpTo(i) { cur=i; renderQ(); }
+
+function startTimer() {
+  clearInterval(timerInt);
+  timerInt=setInterval(()=>{
+    timeLeft--;
+    const m=Math.floor(timeLeft/60), s=timeLeft%60;
+    const el=document.getElementById('timer');
+    el.textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
+    el.className='timer'+(timeLeft<=300?' warn':'')+(timeLeft<=60?' danger':'');
+    if(timeLeft<=0){clearInterval(timerInt);submitTest();}
+  },1000);
+}
+
+async function submitTest() {
+  clearInterval(timerInt);
+  const total=qs.length;
+  let correct=0, skipped=0;
+  qs.forEach((_,i)=>{ if(ans[i]===undefined) skipped++; else if(ans[i]===qs[i].a) correct++; });
+  const wrong=total-correct-skipped;
+  const pct=Math.round((correct/total)*100);
+  const elapsed=Math.round((Date.now()-startTime)/1000);
+  const mm=Math.floor(elapsed/60), ss=elapsed%60;
+  const col=pct>=70?'#22C55E':pct>=50?'#F59E0B':'#EF4444';
+  const grade=pct>=70?'Excellent 🎉':pct>=50?'Good Job 👍':'Keep Going 💪';
+
+  document.getElementById('resPct').innerHTML=pct+'<small>%</small>';
+  document.getElementById('resGrade').textContent=grade;
+  document.getElementById('resGrade').style.color=col;
+  document.getElementById('resRing').style.stroke=col;
+  document.getElementById('resTitle').textContent=pct>=70?'Outstanding! 🏆':'Test Complete!';
+  document.getElementById('resSub').textContent=`You scored ${correct} out of ${total} in ${subj.name}. ${pct>=70?'You are on track for 300+!':pct>=50?'Review your wrong answers and retake.':'Study this topic again and come back stronger.'}`;
+  document.getElementById('rsCorrect').textContent=correct;
+  document.getElementById('rsWrong').textContent=wrong;
+  document.getElementById('rsSkipped').textContent=skipped;
+  document.getElementById('rsTime').textContent=`${mm}m ${ss}s`;
+  show('resultScreen');
+  setTimeout(()=>{ document.getElementById('resRing').style.strokeDashoffset=389.6-(pct/100)*389.6; },300);
+
+  try { await saveScore(subj.id, '1-3', correct, total); }
+  catch(e) { console.error('Save error:', e); }
+}
+
+function retake() { startTest(subj, qs.length); }
+
+function show(id) {
+  ['pickScreen','testScreen','resultScreen'].forEach(s=>{
+    document.getElementById(s).classList.toggle('active', s===id);
+  });
+  window.scrollTo(0,0);
+}
+
+// Auto-start if ?subject=xxx is present in the URL
+const params = new URLSearchParams(window.location.search);
+const preselect = params.get('subject');
+if (preselect) {
+  const found = SUBJECTS.find(s => s.id === preselect);
+  if (found) openCountModal(found);
+}
+</script>
+</body>
+</html>

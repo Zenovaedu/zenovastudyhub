@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Progress — Zenova Study Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const app  = initializeApp({apiKey:"AIzaSyBoKTKQh1FslukdDgp4YTLXDELyC7hSXBs",authDomain:"zenova-ecosystem.firebaseapp.com",projectId:"zenova-ecosystem",storageBucket:"zenova-ecosystem.firebasestorage.app",messagingSenderId:"104804319209",appId:"1:104804319209:web:fb6a4be936ef9447115578"});
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+
+  const SUBJ_MAP = {physics:'Physics',chem:'Chemistry',math:'Mathematics',bio:'Biology',geo:'Geography',agric:'Agric Science',english:'English Language',crs:'CRS',lit:'Literature',govt:'Government',history:'History',econ:'Economics',commerce:'Commerce',irk:'IRK',account:'Accounting'};
+  const ICON_MAP = {physics:'⚛️',chem:'🧪',math:'🔢',bio:'🌿',geo:'🌍',agric:'🌾',english:'📚',crs:'✝️',lit:'📖',govt:'🏛️',history:'📜',econ:'💰',commerce:'💼',irk:'🕌',account:'🧮'};
+  const SUBJ_ORDER = ['physics','chem','math','bio','geo','agric','english','crs','lit','govt','history','econ','commerce','irk','account'];
+
+  onAuthStateChanged(auth, async user => {
+    if (!user) { window.location.href='login.html'; return; }
+
+    const snap = await getDoc(doc(db,'users',user.uid));
+    const data = snap.exists() ? snap.data() : {};
+    const scores = (data.scores||[]).map(s=>{
+      let ts = null;
+      if(s.date && typeof s.date === 'number') ts = s.date;
+      else if(s.date && s.date.seconds) ts = s.date.seconds * 1000;
+      return {...s, ts};
+    });
+    const progress = data.progress || {};
+
+    renderStats(scores);
+    renderSubjectBars(progress, scores);
+    renderList(scores);
+  });
+
+  function renderStats(scores) {
+    const n = scores.length;
+    const avg  = n ? Math.round(scores.reduce((a,s)=>a+(s.score||0),0)/n) : 0;
+    const best = n ? Math.max(...scores.map(s=>s.score||0)) : 0;
+    const subjs= [...new Set(scores.map(s=>s.subjectId))].length;
+    document.getElementById('sTotal').textContent = n;
+    document.getElementById('sAvg').textContent   = avg+'%';
+    document.getElementById('sBest').textContent  = best+'%';
+    document.getElementById('sSubjs').textContent = subjs+'/15';
+  }
+
+  function renderSubjectBars(progress, scores) {
+    const el = document.getElementById('subjBars');
+    el.innerHTML = '';
+    SUBJ_ORDER.forEach(id => {
+      const pct   = progress[id] || 0;
+      const subs  = scores.filter(s=>s.subjectId===id);
+      const tries = subs.length;
+      const col   = pct>=70?'#22C55E':pct>=40?'#F59E0B':'#3B82F6';
+      const row   = document.createElement('div');
+      row.className = 'sb-row';
+      row.innerHTML = `
+        <div class="sb-left">
+          <span class="sb-ico">${ICON_MAP[id]||'📝'}</span>
+          <div>
+            <div class="sb-name">${SUBJ_MAP[id]||id}</div>
+            <div class="sb-meta">${tries} attempt${tries!==1?'s':''}</div>
+          </div>
+        </div>
+        <div class="sb-right">
+          <div class="sb-track"><div class="sb-fill" style="width:0%;background:${col}" data-w="${pct}"></div></div>
+          <div class="sb-pct" style="color:${col}">${pct}%</div>
+        </div>`;
+      el.appendChild(row);
+    });
+    setTimeout(()=>{
+      document.querySelectorAll('.sb-fill').forEach(b=>{
+        b.style.transition='width 1.1s ease';
+        b.style.width=b.dataset.w+'%';
+      });
+    },150);
+  }
+
+  let allScores=[], activeFilter='all';
+
+  function renderList(scores) {
+    allScores = [...scores].sort((a,b)=>(b.ts||0)-(a.ts||0));
+    document.querySelectorAll('.fbtn').forEach(b=>{
+      b.onclick=()=>{
+        document.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
+        b.classList.add('active');
+        activeFilter=b.dataset.f;
+        draw();
+      };
+    });
+    draw();
+  }
+
+  function draw() {
+    let list = allScores;
+    if(activeFilter==='top')  list=list.filter(s=>s.score>=70);
+    if(activeFilter==='pass') list=list.filter(s=>s.score>=50);
+    if(activeFilter==='fail') list=list.filter(s=>s.score<50);
+
+    const el = document.getElementById('histList');
+    if(!list.length) {
+      el.innerHTML=`<div class="empty"><div style="font-size:32px;margin-bottom:10px">🔍</div><p>No results match this filter.</p></div>`;
+      return;
+    }
+    el.innerHTML = list.map((s)=>{
+      const pct  = s.score||0;
+      const col  = pct>=70?'#22C55E':pct>=50?'#F59E0B':'#EF4444';
+      const grade= pct>=70?'A':pct>=60?'B':pct>=50?'C':pct>=40?'D':'F';
+      const icon = ICON_MAP[s.subjectId]||'📝';
+      const name = SUBJ_MAP[s.subjectId]||s.subjectId||'Unknown';
+      const date = s.ts ? new Date(s.ts).toLocaleDateString('en-NG',{day:'numeric',month:'short'}) : 'N/A';
+      return `
+        <div class="hrow">
+          <div class="hrow-left">
+            <div class="hrow-icon">${icon}</div>
+            <div>
+              <div class="hrow-name">${name}</div>
+              <div class="hrow-meta">${date} · ${s.correct||'?'}/${s.total||20} correct</div>
+            </div>
+          </div>
+          <div class="hrow-right">
+            <div class="hbadge" style="color:${col}">${pct}%</div>
+            <div class="hgrade" style="background:${col}">${grade}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--accent:#2563EB;--muted:#5B7291;--border:#E2E8F4;
+  --green:#22C55E;--red:#EF4444;--amber:#F59E0B;
+  --font:'Plus Jakarta Sans',sans-serif;--r:14px;--rs:8px;
+}
+html,body{height:100%;font-family:var(--font);background:#fff;color:var(--navy)}
+
+.app-top{position:sticky;top:0;z-index:40;background:#fff;border-bottom:1px solid var(--border);box-shadow:0 1px 8px rgba(10,22,40,0.05);padding:14px 20px;display:flex;align-items:center;gap:8px}
+.app-top img{height:26px;width:26px;object-fit:contain}
+.app-top span{font-size:15px;font-weight:800}
+
+.page{padding:18px 16px 100px;max-width:640px;margin:0 auto}
+h2{font-size:19px;font-weight:800;margin-bottom:4px}
+.sub{font-size:13px;color:var(--muted);margin-bottom:18px}
+
+.stat-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px}
+.stat{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:14px;box-shadow:0 2px 8px rgba(10,22,40,0.05)}
+.stat-lbl{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:800}
+
+.card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:0 2px 8px rgba(10,22,40,0.05);margin-bottom:18px}
+.card-title{font-size:15px;font-weight:800;margin-bottom:12px}
+
+.sb-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #EEF1F7}
+.sb-row:last-child{border-bottom:none}
+.sb-left{display:flex;align-items:center;gap:8px;min-width:0}
+.sb-ico{font-size:16px}
+.sb-name{font-size:12.5px;font-weight:700}
+.sb-meta{font-size:10.5px;color:var(--muted)}
+.sb-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sb-track{width:64px;height:5px;background:#E8EDF5;border-radius:3px;overflow:hidden}
+.sb-fill{height:100%;border-radius:3px}
+.sb-pct{font-size:12px;font-weight:800;min-width:30px;text-align:right}
+
+.filters{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.fbtn{padding:6px 12px;border-radius:100px;border:1.5px solid var(--border);background:#fff;font-size:11.5px;font-weight:700;cursor:pointer;font-family:var(--font)}
+.fbtn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #EEF1F7}
+.hrow:last-child{border-bottom:none}
+.hrow-left{display:flex;align-items:center;gap:10px;min-width:0}
+.hrow-icon{font-size:18px}
+.hrow-name{font-size:13px;font-weight:700}
+.hrow-meta{font-size:11px;color:var(--muted)}
+.hrow-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.hbadge{font-size:13px;font-weight:800}
+.hgrade{width:22px;height:22px;border-radius:6px;color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.empty{text-align:center;padding:24px;color:var(--muted)}
+
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:64px;background:#fff;border-top:1px solid var(--border);box-shadow:0 -2px 12px rgba(10,22,40,0.06);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom)}
+.bn-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:#94A3B8;font-size:10.5px;font-weight:600;position:relative}
+.bn-icon{font-size:20px}
+.bn-item.active{color:var(--accent)}
+.bn-item.active::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:26px;height:3px;background:var(--accent);border-radius:0 0 3px 3px}
+</style>
+</head>
+<body>
+
+<header class="app-top">
+  <img src="logo.png" alt="Zenova"/>
+  <span>Zenova <b style="color:var(--accent)">Hub</b></span>
+</header>
+
+<div class="page">
+  <h2>Your Progress 📈</h2>
+  <div class="sub">Track your scores and subject mastery over time.</div>
+
+  <div class="stat-strip">
+    <div class="stat"><div class="stat-lbl">Tests Taken</div><div class="stat-val" id="sTotal">0</div></div>
+    <div class="stat"><div class="stat-lbl">Average Score</div><div class="stat-val" id="sAvg">0%</div></div>
+    <div class="stat"><div class="stat-lbl">Personal Best</div><div class="stat-val" id="sBest">0%</div></div>
+    <div class="stat"><div class="stat-lbl">Subjects Tried</div><div class="stat-val" id="sSubjs">0/15</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Subject Breakdown</div>
+    <div id="subjBars"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Test History</div>
+    <div class="filters">
+      <button class="fbtn active" data-f="all">All</button>
+      <button class="fbtn" data-f="top">70%+</button>
+      <button class="fbtn" data-f="pass">50%+</button>
+      <button class="fbtn" data-f="fail">Below 50%</button>
+    </div>
+    <div id="histList"></div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="home.html" class="bn-item"><span class="bn-icon">🏠</span>Home</a>
+  <a href="quiz.html" class="bn-item"><span class="bn-icon">📝</span>Quiz</a>
+  <a href="progress.html" class="bn-item active"><span class="bn-icon">📊</span>Progress</a>
+  <a href="profile.html" class="bn-item"><span class="bn-icon">👤</span>Profile</a>
+</nav>
+</body>
+</html>
