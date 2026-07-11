@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Zenova Study Hub — JAMB & WAEC Prep</title>
+<link rel="icon" type="image/png" href="logo.png"/>
+<script type="module">
+  // If the person is already logged in, skip the landing page and go straight to the app
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const app  = initializeApp({apiKey:"AIzaSyBoKTKQh1FslukdDgp4YTLXDELyC7hSXBs",authDomain:"zenova-ecosystem.firebaseapp.com",projectId:"zenova-ecosystem",storageBucket:"zenova-ecosystem.firebasestorage.app",messagingSenderId:"104804319209",appId:"1:104804319209:web:fb6a4be936ef9447115578"});
+  const auth = getAuth(app);
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) window.location.replace('home.html');
+  });
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0A1628;--navy-light:#153465;--accent:#2563EB;--accent-light:#3B82F6;
+  --accent-dim:rgba(37,99,235,0.1);--paper:#FFFFFF;--paper-soft:#F8FAFC;
+  --line:#E2E8F4;--muted:#5B7291;--muted-2:#94A3B8;
+  --font:'Plus Jakarta Sans',sans-serif;--r:16px;--rs:10px;
+  --shadow:0 10px 34px rgba(10,22,40,0.08);
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font);background:var(--paper);color:var(--navy);overflow-x:hidden}
+a{color:inherit}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(10,22,40,0.97);backdrop-filter:blur(14px);padding:0 5%;height:68px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,0.08)}
+.nav-logo{display:flex;align-items:center;gap:9px;text-decoration:none}
+.nav-logo img{width:30px;height:30px;object-fit:contain}
+.nav-logo span{font-weight:800;font-size:17px;color:#fff}
+.nav-logo span b{color:var(--accent-light)}
+.nav-links{display:flex;align-items:center;gap:4px}
+.nav-links a{color:rgba(255,255,255,0.68);text-decoration:none;font-size:14px;font-weight:600;padding:9px 14px;border-radius:var(--rs);transition:all .2s}
+.nav-links a:hover{color:#fff;background:rgba(255,255,255,0.07)}
+.btn-nav{border:1.5px solid rgba(255,255,255,0.25)!important;color:#fff!important;padding:8px 18px!important}
+.btn-nav:hover{border-color:#fff!important;background:rgba(255,255,255,0.08)!important}
+.btn-nav-solid{background:var(--accent)!important;color:#fff!important;font-weight:700!important;padding:9px 20px!important;margin-left:4px}
+.btn-nav-solid:hover{background:var(--accent-light)!important}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px}
+.hamburger span{width:22px;height:2px;background:#fff;border-radius:2px}
+.mobile-menu{display:none;position:fixed;top:68px;left:0;right:0;background:var(--navy);padding:14px 5% 22px;border-bottom:1px solid rgba(255,255,255,0.1);z-index:99;flex-direction:column;gap:2px}
+.mobile-menu.open{display:flex}
+.mobile-menu a{color:rgba(255,255,255,0.78);text-decoration:none;font-size:15px;font-weight:600;padding:12px 14px;border-radius:var(--rs)}
+.mobile-menu a:hover{background:rgba(255,255,255,0.07);color:#fff}
+.mobile-menu .btn-m{background:var(--accent);color:#fff;font-weight:700;margin-top:8px;text-align:center}
+
+/* HERO */
+.hero{min-height:92vh;background:var(--navy);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:110px 5% 60px}
+.hero-grid{position:absolute;inset:0;opacity:0.5;background-image:linear-gradient(rgba(255,255,255,0.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.045) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 70% 60% at 50% 35%,black 20%,transparent 75%)}
+.hero-glow{position:absolute;top:-30%;left:50%;transform:translateX(-50%);width:900px;height:900px;background:radial-gradient(circle,rgba(37,99,235,0.2) 0%,transparent 65%);pointer-events:none}
+.hero-badge{position:relative;display:inline-flex;align-items:center;gap:9px;border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;padding:8px 18px 8px 14px;border-radius:100px;margin-bottom:28px}
+.hero-badge .dot{width:6px;height:6px;background:var(--accent-light);border-radius:50%;animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(1.4)}}
+h1.hero-title{position:relative;font-size:clamp(34px,6vw,62px);font-weight:800;color:#fff;line-height:1.12;letter-spacing:-1px;max-width:800px}
+h1.hero-title em{font-style:normal;color:var(--accent-light)}
+.hero-sub{position:relative;font-size:clamp(15px,2vw,17.5px);color:rgba(255,255,255,0.6);max-width:540px;margin:20px auto 38px;line-height:1.7}
+.hero-ctas{position:relative;display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.btn-primary{background:var(--accent);color:#fff;font-weight:700;font-size:15px;padding:14px 30px;border-radius:var(--rs);text-decoration:none;transition:all .25s;border:none;cursor:pointer;font-family:var(--font);box-shadow:0 8px 26px rgba(37,99,235,0.4)}
+.btn-primary:hover{background:var(--accent-light);transform:translateY(-2px)}
+.btn-outline{background:transparent;color:#fff;font-weight:600;font-size:15px;padding:14px 30px;border-radius:var(--rs);text-decoration:none;border:1.5px solid rgba(255,255,255,0.25);transition:all .25s;cursor:pointer;font-family:var(--font)}
+.btn-outline:hover{border-color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.06);transform:translateY(-2px)}
+
+/* COUNTDOWN STRIP */
+.register-section{background:var(--navy-light);border-top:1px solid rgba(255,255,255,0.08);padding:32px 5%}
+.register-inner{max-width:900px;margin:0 auto;text-align:center}
+.register-eyebrow{font-size:11px;font-weight:700;color:var(--accent-light);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.register-title{font-size:17px;font-weight:800;color:#fff;margin-bottom:20px}
+.register-tabs{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:20px}
+.register-tab{padding:7px 17px;border-radius:100px;border:1.5px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.55);font-size:12.5px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .2s;background:transparent}
+.register-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.count-boxes{display:flex;gap:0;justify-content:center;flex-wrap:wrap;border:1px solid rgba(255,255,255,0.14);border-radius:var(--r)}
+.count-box{padding:16px 26px;min-width:80px;text-align:center;border-right:1px solid rgba(255,255,255,0.14)}
+.count-box:last-child{border-right:none}
+.count-num{font-size:32px;font-weight:800;color:#fff;line-height:1;font-variant-numeric:tabular-nums}
+.count-lbl{font-size:10.5px;color:var(--accent-light);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;margin-top:5px}
+
+/* STATS */
+.stats-bar{background:var(--paper);padding:32px 5%;border-bottom:1px solid var(--line)}
+.stats-inner{max-width:1000px;margin:0 auto;display:flex;justify-content:space-around;flex-wrap:wrap;gap:20px}
+.stat-item{text-align:center}
+.stat-num{font-size:30px;font-weight:800;color:var(--navy)}
+.stat-num em{font-style:normal;color:var(--accent)}
+.stat-lbl{font-size:12px;color:var(--muted-2);font-weight:700;margin-top:3px}
+
+/* SECTION SHELL */
+.section{padding:84px 5%}
+.section-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.section-title{font-size:clamp(26px,3.6vw,38px);font-weight:800;color:var(--navy);line-height:1.2;letter-spacing:-0.5px;max-width:600px}
+.section-sub{font-size:15px;color:var(--muted);margin-top:12px;max-width:480px;line-height:1.7}
+
+/* FEATURES */
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:1px;margin-top:44px;border:1px solid var(--line);background:var(--line)}
+.feat-card{background:var(--paper);padding:28px 26px;transition:all .25s}
+.feat-card:hover{background:var(--paper-soft)}
+.feat-num{font-size:12px;font-weight:800;color:var(--muted-2);margin-bottom:16px}
+.feat-title{font-size:16px;font-weight:800;color:var(--navy);margin-bottom:8px}
+.feat-desc{font-size:13px;color:var(--muted);line-height:1.7}
+
+/* SUBJECTS */
+.subjects-section{background:var(--paper-soft);padding:84px 5%}
+.subjects-header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;margin-bottom:38px}
+.ledger{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--paper)}
+.ledger-row{display:flex;align-items:center;gap:16px;padding:16px 24px;text-decoration:none;color:var(--navy);border-bottom:1px solid var(--line);transition:background .2s}
+.ledger-row:last-child{border-bottom:none}
+.ledger-row:hover{background:var(--paper-soft)}
+.ledger-no{font-size:13px;font-weight:700;color:var(--muted-2);width:24px;flex-shrink:0}
+.ledger-icon{font-size:18px;width:24px;flex-shrink:0}
+.ledger-name{font-weight:700;font-size:14.5px;flex:1;min-width:110px}
+.ledger-badge{font-size:10.5px;font-weight:700;color:var(--accent);background:var(--accent-dim);border:1px solid rgba(37,99,235,0.2);padding:4px 11px;border-radius:100px;flex-shrink:0;white-space:nowrap}
+.ledger-arrow{color:var(--muted-2);flex-shrink:0;transition:transform .2s}
+.ledger-row:hover .ledger-arrow{transform:translateX(3px);color:var(--accent)}
+
+/* TIP */
+.tip-section{background:var(--navy);padding:68px 5%}
+.tip-inner{max-width:740px;margin:0 auto;text-align:center}
+.tip-label{font-size:11px;font-weight:700;letter-spacing:2px;color:var(--accent-light);text-transform:uppercase;margin-bottom:18px}
+.tip-text{font-size:clamp(17px,2.6vw,25px);font-weight:600;font-style:italic;color:#fff;line-height:1.6}
+.tip-author{font-size:12px;color:rgba(255,255,255,0.4);margin-top:18px;font-weight:700}
+.tip-dots{display:flex;gap:7px;justify-content:center;margin-top:24px}
+.tip-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.2);cursor:pointer;transition:all .2s}
+.tip-dot.active{background:var(--accent-light);width:20px;border-radius:4px}
+
+/* HOW IT WORKS */
+.how-section{padding:84px 5%}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:44px;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.step{text-align:left;padding:28px 24px;border-right:1px solid var(--line)}
+.step:last-child{border-right:none}
+.step-num{font-size:24px;font-weight:800;color:var(--line);margin-bottom:16px}
+.step-title{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:7px}
+.step-desc{font-size:13px;color:var(--muted);line-height:1.65}
+
+/* WHATSAPP */
+.wa-section{background:var(--paper-soft);padding:72px 5%;text-align:center;border-top:1px solid var(--line)}
+.wa-inner{max-width:600px;margin:0 auto}
+.wa-title{font-size:clamp(22px,3.6vw,32px);font-weight:800;color:var(--navy);margin-bottom:12px;letter-spacing:-0.5px}
+.wa-sub{font-size:15px;color:var(--muted);margin-bottom:30px;line-height:1.7}
+.btn-wa{display:inline-flex;align-items:center;gap:10px;background:var(--navy);color:#fff;font-weight:700;font-size:15px;padding:14px 32px;border-radius:var(--rs);text-decoration:none;transition:all .25s}
+.btn-wa:hover{background:var(--navy-light);transform:translateY(-2px)}
+
+/* FOOTER */
+footer{background:#060D1D;padding:52px 5% 30px;color:rgba(255,255,255,0.55)}
+.footer-inner{max-width:1100px;margin:0 auto}
+.footer-top{display:flex;justify-content:space-between;flex-wrap:wrap;gap:32px;margin-bottom:40px}
+.footer-brand span{font-size:19px;font-weight:800;color:#fff}
+.footer-brand span b{color:var(--accent-light)}
+.footer-brand p{font-size:13px;margin-top:14px;max-width:260px;line-height:1.75;color:rgba(255,255,255,0.4)}
+.footer-col h4{font-size:11.5px;font-weight:800;color:#fff;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:16px}
+.footer-col a{display:block;font-size:13.5px;color:rgba(255,255,255,0.5);text-decoration:none;margin-bottom:10px;transition:color .2s}
+.footer-col a:hover{color:var(--accent-light)}
+.footer-bottom{border-top:1px solid rgba(255,255,255,0.08);padding-top:24px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-size:12px}
+.footer-bottom span{color:rgba(255,255,255,0.3)}
+
+/* ANIM */
+.reveal{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+@media(max-width:900px){
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .step{border-bottom:1px solid var(--line)}
+  .step:nth-child(2n){border-right:none}
+}
+@media(max-width:768px){
+  .nav-links{display:none}
+  .hamburger{display:flex}
+  .footer-top{flex-direction:column}
+  .count-box{padding:13px 16px;min-width:64px}
+  .count-num{font-size:26px}
+  .ledger-meta{display:none}
+}
+@media(max-width:480px){
+  .hero-ctas{flex-direction:column;align-items:center}
+  .btn-primary,.btn-outline{width:100%;max-width:300px;text-align:center}
+  .steps{grid-template-columns:1fr}
+  .step{border-right:none;border-bottom:1px solid var(--line)}
+}
+/* PROMO POPUP */
+.promo-overlay{display:none;position:fixed;inset:0;background:rgba(6,13,29,0.72);z-index:300;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.promo-overlay.open{display:flex}
+.promo-modal{background:var(--paper);border-radius:20px;padding:36px 32px;max-width:400px;width:100%;position:relative;text-align:center;animation:promoIn .3s ease}
+@keyframes promoIn{from{opacity:0;transform:translateY(16px) scale(0.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.promo-close{position:absolute;top:14px;right:14px;background:var(--paper-soft);border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all .2s}
+.promo-close:hover{background:var(--line);color:var(--navy)}
+.promo-logo{width:52px;height:52px;object-fit:contain;margin:0 auto 16px}
+.promo-title{font-size:20px;font-weight:800;color:var(--navy);margin-bottom:8px}
+.promo-sub{font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:24px}
+.promo-btns{display:flex;flex-direction:column;gap:9px}
+.promo-btn-primary{background:var(--accent);color:#fff;font-weight:700;font-size:14.5px;padding:13px;border-radius:var(--rs);text-decoration:none;border:none;cursor:pointer;font-family:var(--font)}
+.promo-btn-primary:hover{background:var(--accent-light)}
+.promo-btn-outline{background:transparent;color:var(--navy);font-weight:700;font-size:14.5px;padding:13px;border-radius:var(--rs);border:1.5px solid var(--line);text-decoration:none;cursor:pointer;font-family:var(--font)}
+.promo-btn-outline:hover{background:var(--paper-soft)}
+.promo-later{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:14px;text-decoration:underline}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <img src="logo-white.png" alt="Zenova"/>
+    <span>Zenova <b>Study Hub</b></span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#subjects">Subjects</a>
+    <a href="#how">How It Works</a>
+    <a class="btn-nav" href="login.html">Login</a>
+    <a class="btn-nav-solid" href="signup.html">Sign Up Free</a>
+  </div>
+  <div class="hamburger" onclick="toggleMenu()" id="hamburger">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#features" onclick="toggleMenu()">Features</a>
+  <a href="#subjects" onclick="toggleMenu()">Subjects</a>
+  <a href="#how" onclick="toggleMenu()">How It Works</a>
+  <a href="login.html">Login</a>
+  <a class="btn-m" href="signup.html">Sign Up Free</a>
+</div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-badge"><span class="dot"></span>Week 1–3 Tests Are Live</div>
+  <h1 class="hero-title">Pass <em>JAMB &amp; WAEC</em><br/>with Confidence</h1>
+  <p class="hero-sub">Free weekly CBT tests, progress tracking, and daily exam tips — everything a Nigerian student needs to score 300+.</p>
+  <div class="hero-ctas">
+    <a class="btn-primary" href="signup.html">Start Studying Free →</a>
+    <a href="#subjects" class="btn-outline">View Subjects</a>
+  </div>
+</section>
+
+<!-- COUNTDOWN -->
+<section class="register-section">
+  <div class="register-inner">
+    <div class="register-eyebrow">Time Remaining</div>
+    <div class="register-title" id="countdownTitle">JAMB 2027 Exam Countdown</div>
+    <div class="register-tabs">
+      <button class="register-tab active" onclick="switchExam('jamb',this)">JAMB 2027</button>
+      <button class="register-tab" onclick="switchExam('waec',this)">WAEC 2027</button>
+      <button class="register-tab" onclick="switchExam('neco',this)">NECO 2027</button>
+    </div>
+    <div class="count-boxes">
+      <div class="count-box"><div class="count-num" id="cd-days">000</div><div class="count-lbl">Days</div></div>
+      <div class="count-box"><div class="count-num" id="cd-hrs">00</div><div class="count-lbl">Hours</div></div>
+      <div class="count-box"><div class="count-num" id="cd-min">00</div><div class="count-lbl">Mins</div></div>
+      <div class="count-box"><div class="count-num" id="cd-sec">00</div><div class="count-lbl">Secs</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar reveal">
+  <div class="stats-inner">
+    <div class="stat-item"><div class="stat-num">15<em>+</em></div><div class="stat-lbl">Subjects Covered</div></div>
+    <div class="stat-item"><div class="stat-num">100<em>%</em></div><div class="stat-lbl">Free Access</div></div>
+    <div class="stat-item"><div class="stat-num">20</div><div class="stat-lbl">Questions Per Test</div></div>
+    <div class="stat-item"><div class="stat-num">5k<em>+</em></div><div class="stat-lbl">Students Enrolled</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="reveal">
+    <div class="section-label">What You Get</div>
+    <h2 class="section-title">Everything You Need to Ace Your Exams</h2>
+    <p class="section-sub">All tools and tracking in one free platform built for Nigerian students.</p>
+  </div>
+  <div class="features-grid reveal">
+    <div class="feat-card"><div class="feat-num">01</div><div class="feat-title">Weekly CBT Tests</div><div class="feat-desc">Timed tests per subject with instant feedback and explanations for every question.</div></div>
+    <div class="feat-card"><div class="feat-num">02</div><div class="feat-title">Progress Tracker</div><div class="feat-desc">Visual progress rings show your percentage completion per subject, so you know where you stand.</div></div>
+    <div class="feat-card"><div class="feat-num">03</div><div class="feat-title">Score History</div><div class="feat-desc">Track your scores over time. See your improvement curve and identify weak areas to focus on.</div></div>
+    <div class="feat-card"><div class="feat-num">04</div><div class="feat-title">Daily Exam Tips</div><div class="feat-desc">A new exam strategy or fact every day to sharpen your technique and boost your confidence.</div></div>
+    <div class="feat-card"><div class="feat-num">05</div><div class="feat-title">Exam Countdown</div><div class="feat-desc">Live countdowns to JAMB, WAEC, and NECO so you always know exactly how much time you have left.</div></div>
+    <div class="feat-card"><div class="feat-num">06</div><div class="feat-title">Streak Tracking</div><div class="feat-desc">Build a daily study streak and stay accountable to your prep, one day at a time.</div></div>
+  </div>
+</section>
+
+<!-- SUBJECTS -->
+<section class="subjects-section" id="subjects">
+  <div class="subjects-header reveal">
+    <div>
+      <div class="section-label">Subjects</div>
+      <h2 class="section-title">All 15 JAMB &amp; WAEC Subjects</h2>
+    </div>
+    <a class="btn-primary" href="signup.html">Access All Free</a>
+  </div>
+  <div class="ledger reveal">
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">01</span><span class="ledger-icon">🔢</span><span class="ledger-name">Mathematics</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">02</span><span class="ledger-icon">📚</span><span class="ledger-name">English Language</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">03</span><span class="ledger-icon">⚛️</span><span class="ledger-name">Physics</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">04</span><span class="ledger-icon">🧪</span><span class="ledger-name">Chemistry</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">05</span><span class="ledger-icon">🌿</span><span class="ledger-name">Biology</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">06</span><span class="ledger-icon">🌍</span><span class="ledger-name">Geography</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">07</span><span class="ledger-icon">📖</span><span class="ledger-name">Literature in English</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">08</span><span class="ledger-icon">🌾</span><span class="ledger-name">Agric Science</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">09</span><span class="ledger-icon">📜</span><span class="ledger-name">History</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">10</span><span class="ledger-icon">🏛️</span><span class="ledger-name">Government</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">11</span><span class="ledger-icon">💰</span><span class="ledger-name">Economics</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">12</span><span class="ledger-icon">💼</span><span class="ledger-name">Commerce</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">13</span><span class="ledger-icon">🧮</span><span class="ledger-name">Accounting</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">14</span><span class="ledger-icon">📢</span><span class="ledger-name">Marketing</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+    <a class="ledger-row" href="signup.html"><span class="ledger-no">15</span><span class="ledger-icon">✝️</span><span class="ledger-name">CRS</span><span class="ledger-meta">Weekly test</span><span class="ledger-badge">Live</span><span class="ledger-arrow">→</span></a>
+  </div>
+</section>
+
+<!-- TIP -->
+<section class="tip-section">
+  <div class="tip-inner reveal">
+    <div class="tip-label">Tip of the Day</div>
+    <div class="tip-text" id="tipText">"Start with the questions you know best. Confidence in the first 10 answers sets your pace for the whole exam."</div>
+    <div class="tip-author" id="tipAuthor">— Zenova Exam Strategy</div>
+    <div class="tip-dots">
+      <div class="tip-dot active" onclick="showTip(0)"></div>
+      <div class="tip-dot" onclick="showTip(1)"></div>
+      <div class="tip-dot" onclick="showTip(2)"></div>
+      <div class="tip-dot" onclick="showTip(3)"></div>
+      <div class="tip-dot" onclick="showTip(4)"></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="how">
+  <div class="reveal">
+    <div class="section-label">How It Works</div>
+    <h2 class="section-title">Three Steps to Exam Success</h2>
+  </div>
+  <div class="steps reveal">
+    <div class="step"><div class="step-num">01</div><div class="step-title">Create Free Account</div><div class="step-desc">Sign up in 30 seconds. No payment required, ever.</div></div>
+    <div class="step"><div class="step-num">02</div><div class="step-title">Pick a Subject</div><div class="step-desc">Choose from all 15 JAMB &amp; WAEC subjects.</div></div>
+    <div class="step"><div class="step-num">03</div><div class="step-title">Take Tests &amp; Track Progress</div><div class="step-desc">Take the CBT test, get instant feedback, and watch your progress rings fill up.</div></div>
+  </div>
+</section>
+
+<!-- WHATSAPP -->
+<section class="wa-section">
+  <div class="wa-inner">
+    <div class="wa-title">Join the Zenova WhatsApp Community</div>
+    <div class="wa-sub">Get weekly reminders, exam tips, and first access to new resources — straight to your phone.</div>
+    <a class="btn-wa" href="https://chat.whatsapp.com/BfcrVxEJ8tM1BKPXaQGRJU">💬 Join WhatsApp Group</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div style="display:flex;align-items:center;gap:10px">
+          <img src="logo-white.png" alt="Zenova" style="width:30px;height:30px;object-fit:contain"/>
+          <span>Zenova <b>Study Hub</b></span>
+        </div>
+        <p>Free JAMB & WAEC preparation for Nigerian students — weekly tests and progress tracking.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="#features">Features</a>
+        <a href="#subjects">Subjects</a>
+        <a href="#how">How It Works</a>
+      </div>
+      <div class="footer-col">
+        <h4>Account</h4>
+        <a href="login.html">Login</a>
+        <a href="signup.html">Sign Up</a>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <a href="mailto:zenovaofficial188@gmail.com">zenovaofficial188@gmail.com</a>
+        <a href="https://linktr.ee/zenovastudys">@zenovastudy</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Zenova Study Hub. All rights reserved.</span>
+    </div>
+  </div>
+</footer>
+
+<!-- LOGIN / SIGNUP PROMO POPUP -->
+<div class="promo-overlay" id="promoOverlay">
+  <div class="promo-modal">
+    <button class="promo-close" onclick="closePromo(true)">✕</button>
+    <img class="promo-logo" src="logo.png" alt="Zenova"/>
+    <div class="promo-title">Don't miss this week's tests!</div>
+    <div class="promo-sub">Create a free account or log in to save your progress, track your scores, and keep your streak going.</div>
+    <div class="promo-btns">
+      <a class="promo-btn-primary" href="signup.html">Sign Up Free →</a>
+      <a class="promo-btn-outline" href="login.html">Log In</a>
+    </div>
+    <button class="promo-later" onclick="closePromo(true)">Maybe later</button>
+  </div>
+</div>
+
+<script>
+function toggleMenu(){document.getElementById('mobileMenu').classList.toggle('open')}
+
+const examDates={jamb:new Date('2027-02-15T09:00:00'),waec:new Date('2027-05-05T09:00:00'),neco:new Date('2027-06-14T09:00:00')};
+const examNames={jamb:'JAMB 2027 Exam Countdown',waec:'WAEC 2027 Exam Countdown',neco:'NECO 2027 Exam Countdown'};
+let currentExam='jamb';
+function switchExam(exam,btn){
+  currentExam=exam;
+  document.querySelectorAll('.register-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('countdownTitle').textContent=examNames[exam];
+  updateCountdown();
+}
+function pad(n,w=2){return String(Math.floor(n)).padStart(w,'0')}
+function updateCountdown(){
+  const now=new Date();
+  const diff=examDates[currentExam]-now;
+  if(diff<=0){document.getElementById('cd-days').textContent='000';document.getElementById('cd-hrs').textContent='00';document.getElementById('cd-min').textContent='00';document.getElementById('cd-sec').textContent='00';return}
+  document.getElementById('cd-days').textContent=pad(Math.floor(diff/86400000),3);
+  document.getElementById('cd-hrs').textContent=pad(Math.floor((diff%86400000)/3600000));
+  document.getElementById('cd-min').textContent=pad(Math.floor((diff%3600000)/60000));
+  document.getElementById('cd-sec').textContent=pad(Math.floor((diff%60000)/1000));
+}
+updateCountdown();setInterval(updateCountdown,1000);
+
+const tips=[
+  {text:'"Start with the questions you know best. Confidence in the first 10 answers sets your pace for the whole exam."',author:'— Zenova Exam Strategy'},
+  {text:'"Eliminate two obviously wrong options first. Your chance of getting the right answer instantly jumps to 50%."',author:'— JAMB Technique'},
+  {text:'"Revise past questions for at least 30 minutes daily. Many JAMB questions repeat patterns from previous years."',author:'— Zenova Research'},
+  {text:"\"Don't leave any question blank. A guess gives you a chance; leaving it blank gives you zero.\"",author:'— CBT Strategy'},
+  {text:'"Sleep is revision. Your brain consolidates what you studied while you sleep — don\'t sacrifice rest for more hours."',author:'— Study Science'},
+];
+let tipIdx=Math.floor(Math.random()*tips.length);
+function showTip(i){
+  tipIdx=i;
+  document.getElementById('tipText').textContent=tips[i].text;
+  document.getElementById('tipAuthor').textContent=tips[i].author;
+  document.querySelectorAll('.tip-dot').forEach((d,j)=>d.classList.toggle('active',j===i));
+}
+showTip(tipIdx);
+setInterval(()=>{tipIdx=(tipIdx+1)%tips.length;showTip(tipIdx)},6000);
+
+const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')})},{threshold:0.1});
+document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+
+// LOGIN/SIGNUP PROMO POPUP
+// Shows up to 5 times, 1 minute apart. If dismissed ("Maybe later" or the X),
+// the next appearance is pushed out to 5 minutes instead of 1.
+const PROMO_MAX_SHOWS = 5;
+const PROMO_NORMAL_GAP = 60 * 1000;       // 1 minute
+const PROMO_SNOOZE_GAP = 5 * 60 * 1000;   // 5 minutes
+let promoShowCount = 0;
+let promoTimer = null;
+
+function showPromo() {
+  if (promoShowCount >= PROMO_MAX_SHOWS) return;
+  document.getElementById('promoOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  promoShowCount++;
+}
+
+function schedulePromo(delay) {
+  clearTimeout(promoTimer);
+  if (promoShowCount >= PROMO_MAX_SHOWS) return;
+  promoTimer = setTimeout(() => {
+    showPromo();
+    schedulePromo(PROMO_NORMAL_GAP);
+  }, delay);
+}
+
+function closePromo(snooze) {
+  document.getElementById('promoOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+  if (snooze) schedulePromo(PROMO_SNOOZE_GAP);
+}
+
+document.getElementById('promoOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'promoOverlay') closePromo(true);
+});
+
+// Show the first popup immediately, then continue on the normal 1-minute rhythm
+showPromo();
+schedulePromo(PROMO_NORMAL_GAP);
+</script>
+</body>
+</html>
